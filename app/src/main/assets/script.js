@@ -1952,21 +1952,31 @@ const Receipt = {
         const senderName = txn.type === 'credit' ? 'Goldltm' : (txn.senderName || (senderUser && senderUser.fullName) || 'You');
         const senderAccount = txn.type === 'credit' ? (txn.senderAccount || 'SYSTEM') : (txn.senderAccount || (senderUser && senderUser.accountNumber) || '---');
 
+        const isBankTransfer = !!bankName && bankName !== 'Goldltm Wallet';
+        const stamp = Utils.formatDate(now) + ' ' + Utils.formatTime(now);
         this.currentData = {
-            title: title || 'Transaction Receipt',
+            title: title || 'Transaction Details',
             status: 'Successful',
             amount: Utils.nairaPlain(txn.amount),
+            fee: Utils.nairaPlain(0),
+            paymentAmount: Utils.nairaPlain(txn.amount),
             txnType: txn.txnType || 'Wallet Transfer',
             recipientName: recipientName,
             recipientAccount: recipientAccount,
             bankName: bankName,
             senderName: senderName,
             senderAccount: senderAccount,
-            date: Utils.formatDate(now),
-            time: Utils.formatTime(now),
+            completion: stamp,
+            stepTime: stamp,
+            steps: [
+                'Payment successful',
+                isBankTransfer ? 'Submitted to bank' : 'Processed by Goldltm',
+                isBankTransfer ? 'Received by bank' : 'Received by recipient'
+            ],
+            sessionNo: receiptNo,
             txnId: txn.id,
             reference: reference,
-            receiptNo: receiptNo
+            application: 'Goldltm'
         };
         this.currentText =
             'GOLDLTM\nTransaction Receipt\n' +
@@ -1985,42 +1995,52 @@ const Receipt = {
             'Reference: ' + reference + '\n\n' +
             'Thank you for using Goldltm.\nwww.goldltm.com';
 
-        const detailRow = (label, value) =>
-            '<div class="receipt-detail-row"><span class="receipt-detail-label">' + label + '</span>' +
-            '<span class="receipt-detail-value">' + Utils.esc(value) + '</span></div>';
+        const d = this.currentData;
+        const checkSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+        const stepNode = '<div class="receipt-step-node">' + checkSvg + '</div>';
+        const timelineHtml = d.steps.map((label, i) =>
+            (i > 0 ? '<div class="receipt-step-line"></div>' : '') +
+            '<div class="receipt-step">' + stepNode +
+            '<div class="receipt-step-label">' + Utils.esc(label) + '</div>' +
+            '<div class="receipt-step-time">' + Utils.esc(d.stepTime) + '</div>' +
+            '</div>').join('');
+        const row = (label, value, cls) =>
+            '<div class="receipt-row ' + (cls || '') + '"><span class="receipt-row-label">' + label + '</span>' +
+            '<span class="receipt-row-value">' + Utils.esc(value) + '</span></div>';
+        const copyIcon = '<svg class="receipt-copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+        const copyRow = (label, value) =>
+            '<div class="receipt-row top"><span class="receipt-row-label">' + label + '</span>' +
+            '<span class="receipt-row-value receipt-copyable" data-value="' + Utils.esc(value) + '" onclick="Receipt.copyValue(this)">' +
+            Utils.esc(value) + copyIcon + '</span></div>';
 
         const html =
             '<div class="receipt">' +
-                '<div class="receipt-head">' +
-                    '<div class="receipt-brand">GOLDLTM</div>' +
-                    '<div class="receipt-brand-sub">TRANSACTION RECEIPT</div>' +
+                '<div class="receipt-amount-hero">' + Utils.esc(d.amount) + '</div>' +
+                '<div class="receipt-chip"><span class="receipt-chip-icon">' + checkSvg + '</span>' + Utils.esc(d.status) + '</div>' +
+                '<div class="receipt-timeline">' + timelineHtml + '</div>' +
+                '<div class="receipt-note">The transfer has been successfully paid and submitted to the recipient' +
+                    (isBankTransfer ? ' bank. Kindly note the actual credited time is subject to the bank.' : '.') + '</div>' +
+                '<div class="receipt-card">' +
+                    row('Transfer Amount', d.amount) +
+                    row('Fee', d.fee) +
+                    row('Payment Amount', d.paymentAmount, 'strong') +
                 '</div>' +
-                '<div class="receipt-status-block">' +
-                    '<div class="receipt-status-icon">' +
-                        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' +
-                    '</div>' +
-                    '<div class="receipt-status-text">' + Utils.esc(this.currentData.status) + '</div>' +
-                    '<div class="receipt-amount-big">' + Utils.esc(this.currentData.amount) + '</div>' +
-                    '<div class="receipt-txn-type">' + Utils.esc(this.currentData.txnType) + '</div>' +
+                '<div class="receipt-card">' +
+                    '<div class="receipt-recipient"><span class="receipt-row-label">Recipient</span>' +
+                    '<div class="receipt-recipient-body">' +
+                    '<div class="receipt-recipient-name">' + Utils.esc(recipientName) + '</div>' +
+                    '<div class="receipt-recipient-meta">' + Utils.esc(bankName) + ' | ' + Utils.esc(recipientAccount) + '</div>' +
+                    '</div></div>' +
+                    copyRow('Session ID', d.sessionNo) +
                 '</div>' +
-                '<div class="receipt-section">' +
-                    '<div class="receipt-section-title">Paid To</div>' +
-                    '<div class="receipt-party-name">' + Utils.esc(recipientName) + '</div>' +
-                    '<div class="receipt-party-meta">' + Utils.esc(recipientAccount) + ' · ' + Utils.esc(bankName) + '</div>' +
-                '</div>' +
-                '<div class="receipt-divider"></div>' +
-                '<div class="receipt-section">' +
-                    detailRow('Date', this.currentData.date) +
-                    detailRow('Time', this.currentData.time) +
-                    detailRow('Transaction ID', this.currentData.txnId) +
-                    detailRow('Reference', this.currentData.reference) +
-                    detailRow('Receipt No.', this.currentData.receiptNo) +
-                '</div>' +
-                '<div class="receipt-divider"></div>' +
-                '<div class="receipt-section">' +
-                    '<div class="receipt-section-title">From</div>' +
-                    '<div class="receipt-party-name">' + Utils.esc(senderName) + '</div>' +
-                    '<div class="receipt-party-meta">' + Utils.esc(senderAccount) + '</div>' +
+                '<div class="receipt-note">If the recipient account is not credited within 5 minutes, please use the Session ID to contact the recipient bank.</div>' +
+                '<div class="receipt-card">' +
+                    row('Completion Time', d.completion) +
+                    copyRow('Transaction ID', d.txnId) +
+                    row('Reference', d.reference) +
+                    row('Application', d.application) +
+                    row('Payment Type', d.txnType) +
+                    row('From', d.senderName + ' (' + d.senderAccount + ')') +
                 '</div>' +
                 '<div class="receipt-foot">' +
                     '<div class="receipt-foot-text">Thank you for using Goldltm</div>' +
@@ -2083,7 +2103,7 @@ const Receipt = {
         const d = this.currentData;
         const W = 1080, PAD = 56, S = 2; // S = pixel density multiplier
         const INK = '#FFFFFF', SUB = '#B0C4D0', GOLD = '#FFDA6A',
-              BG = '#001E2D', CARD = '#0F3347', GREEN = '#4CAF50', LINE = '#1A4A5E';
+              BG = '#001E2D', CARD = '#0F3347', GREEN = '#4CAF50';
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
 
@@ -2095,6 +2115,20 @@ const Receipt = {
             while (text.length > 1 && ctx.measureText(text + '…').width > maxPx) text = text.slice(0, -1);
             return text + '…';
         };
+        const wrapLines = (text, maxPx, size, weight) => {
+            ctx.font = font(size, weight);
+            const words = String(text || '').split(' ');
+            const lines = [];
+            let cur = '';
+            words.forEach((w) => {
+                const trial = cur ? cur + ' ' + w : w;
+                if (ctx.measureText(trial).width <= maxPx) { cur = trial; return; }
+                if (cur) lines.push(cur);
+                cur = w;
+            });
+            if (cur) lines.push(cur);
+            return lines;
+        };
 
         // Every y increment lives inside its layout closure so a replay from
         // y = 0 reproduces the exact geometry used to size the canvas.
@@ -2104,89 +2138,117 @@ const Receipt = {
         const layout = [];
         const push = (fn) => layout.push(fn);
 
-        // Header
+        // Amount hero + status chip
         push(() => {
-            y += 64;
-            ctx.fillStyle = GOLD; ctx.font = font(44, '800'); ctx.textAlign = 'center';
-            ctx.fillText('GOLDLTM', cx, y);
-            y += 34;
-            ctx.fillStyle = SUB; ctx.font = font(20, '600');
-            ctx.fillText('TRANSACTION RECEIPT', cx, y);
-            y += 58;
-            ctx.textAlign = 'left';
-        });
-        // Status circle + amount
-        push(() => {
-            ctx.fillStyle = GREEN;
-            ctx.beginPath(); ctx.arc(cx, y + 44, 44, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-            ctx.beginPath();
-            ctx.moveTo(cx - 20, y + 44); ctx.lineTo(cx - 5, y + 58); ctx.lineTo(cx + 22, y + 28);
-            ctx.stroke();
-            y += 108;
-        });
-        push(() => {
-            ctx.fillStyle = GREEN; ctx.font = font(30, '700'); ctx.textAlign = 'center';
-            ctx.fillText(d.status, cx, y);
-            y += 78;
-            ctx.fillStyle = INK; ctx.font = font(62, '800');
-            ctx.fillText(elide(d.amount, inner, 62, '800'), cx, y);
-            y += 42;
-            ctx.fillStyle = SUB; ctx.font = font(26, '500');
-            ctx.fillText(d.txnType, cx, y);
+            y += 90;
+            ctx.fillStyle = INK; ctx.font = font(66, '800'); ctx.textAlign = 'center';
+            ctx.fillText(elide(d.amount, inner, 66, '800'), cx, y);
             y += 56;
+            // chip: green check circle + "Successful"
+            ctx.font = font(30, '600');
+            const labelW = ctx.measureText(d.status).width;
+            const startX = cx - (labelW + 46) / 2;
+            ctx.fillStyle = GREEN;
+            ctx.beginPath(); ctx.arc(startX + 18, y - 10, 18, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = BG; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(startX + 10, y - 10); ctx.lineTo(startX + 16, y - 4); ctx.lineTo(startX + 27, y - 17);
+            ctx.stroke();
+            ctx.fillStyle = GREEN;
+            ctx.fillText(d.status, startX + 46, y);
+            y += 30;
             ctx.textAlign = 'left';
         });
-        // Paid To
+        // Timeline: 3 checked steps with connectors
         push(() => {
-            ctx.fillStyle = GOLD; ctx.font = font(22, '700');
-            ctx.fillText('PAID TO', PAD, y);
             y += 46;
-            ctx.fillStyle = INK; ctx.font = font(36, '700');
-            ctx.fillText(elide(d.recipientName, inner, 36, '700'), PAD, y);
-            y += 40;
-            ctx.fillStyle = SUB; ctx.font = font(26, '500');
-            ctx.fillText(elide(d.recipientAccount + ' · ' + d.bankName, inner, 26, '500'), PAD, y);
-            y += 68;
-        });
-        // Details (dashed dividers + label/value rows)
-        const rows = [
-            ['Date', d.date], ['Time', d.time],
-            ['Transaction ID', d.txnId], ['Reference', d.reference], ['Receipt No.', d.receiptNo]
-        ];
-        push(() => {
-            ctx.strokeStyle = LINE; ctx.lineWidth = 2; ctx.setLineDash([6, 6]);
-            ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W - PAD, y); ctx.stroke();
-            ctx.setLineDash([]);
-            rows.forEach((r) => {
-                y += 58;
-                ctx.fillStyle = SUB; ctx.font = font(26, '500');
-                ctx.fillText(r[0], PAD, y + 14);
-                const labelW = ctx.measureText(r[0]).width;
-                ctx.fillStyle = INK; ctx.font = font(26, '600'); ctx.textAlign = 'right';
-                ctx.fillText(elide(r[1], inner - labelW - 40, 26, '600'), W - PAD, y + 14);
+            const xs = [PAD + inner * 0.16, cx, W - PAD - inner * 0.16];
+            ctx.strokeStyle = GREEN; ctx.lineWidth = 6; ctx.lineCap = 'round';
+            ctx.beginPath(); ctx.moveTo(xs[0] + 22, y); ctx.lineTo(xs[1] - 22, y); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(xs[1] + 22, y); ctx.lineTo(xs[2] - 22, y); ctx.stroke();
+            xs.forEach((x) => {
+                ctx.fillStyle = GREEN;
+                ctx.beginPath(); ctx.arc(x, y, 22, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = BG; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+                ctx.beginPath();
+                ctx.moveTo(x - 9, y); ctx.lineTo(x - 2, y + 7); ctx.lineTo(x + 10, y - 8);
+                ctx.stroke();
+            });
+            y += 60;
+            xs.forEach((x, i) => {
+                ctx.fillStyle = INK; ctx.font = font(24, '600'); ctx.textAlign = 'center';
+                const lines = wrapLines(d.steps[i], inner * 0.3, 24, '600');
+                lines.slice(0, 2).forEach((ln, li) => {
+                    ctx.fillText(ln, x, y + li * 30);
+                });
+                ctx.fillStyle = SUB; ctx.font = font(20, '500');
+                ctx.fillText(d.stepTime, x, y + 66);
                 ctx.textAlign = 'left';
             });
-            y += 48;
-            ctx.strokeStyle = LINE; ctx.lineWidth = 2; ctx.setLineDash([6, 6]);
-            ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W - PAD, y); ctx.stroke();
-            ctx.setLineDash([]);
+            y += 90;
         });
-        // From
+        // Amounts card (Transfer / Fee / Payment)
+        const amountRows = [['Transfer Amount', d.amount], ['Fee', d.fee], ['Payment Amount', d.paymentAmount]];
         push(() => {
-            y += 64;
-            ctx.fillStyle = GOLD; ctx.font = font(22, '700');
-            ctx.fillText('FROM', PAD, y);
+            y += 24;
+            const boxTop = y - 34;
+            // Panel first so it never covers the row text drawn on top of it
+            const boxH = 34 + 62 * amountRows.length + 30 + 20;
+            ctx.fillStyle = 'rgba(255,255,255,0.05)';
+            this._roundRect(ctx, PAD, boxTop, inner, boxH, 18);
+            ctx.fill();
+            amountRows.forEach((r, i) => {
+                y += 62;
+                const strong = i === amountRows.length - 1;
+                ctx.fillStyle = SUB; ctx.font = font(26, '500');
+                ctx.fillText(r[0], PAD + 20, y + 8);
+                const labelW = ctx.measureText(r[0]).width;
+                ctx.fillStyle = strong ? INK : SUB; ctx.font = font(strong ? 32 : 26, strong ? '800' : '600');
+                ctx.textAlign = 'right';
+                ctx.fillText(elide(r[1], inner - labelW - 80, strong ? 32 : 26, strong ? '800' : '600'), W - PAD - 20, y + 8);
+                ctx.textAlign = 'left';
+            });
+            y = boxTop + boxH + 28;
+        });
+        // Recipient + Session ID card
+        push(() => {
             y += 46;
-            ctx.fillStyle = INK; ctx.font = font(36, '700');
-            ctx.fillText(elide(d.senderName, inner, 36, '700'), PAD, y);
-            y += 40;
             ctx.fillStyle = SUB; ctx.font = font(26, '500');
-            ctx.fillText(elide(d.senderAccount, inner, 26, '500'), PAD, y);
-            y += 60;
+            ctx.fillText('Recipient', PAD + 20, y);
+            ctx.fillStyle = INK; ctx.font = font(30, '700'); ctx.textAlign = 'right';
+            ctx.fillText(elide(d.recipientName, inner * 0.68, 30, '700'), W - PAD - 20, y);
+            ctx.fillStyle = SUB; ctx.font = font(24, '500');
+            ctx.fillText(elide(d.bankName + ' | ' + d.recipientAccount, inner * 0.68, 24, '500'), W - PAD - 20, y + 36);
+            ctx.textAlign = 'left';
+            y += 84;
+            ctx.fillStyle = SUB; ctx.font = font(26, '500');
+            ctx.fillText('Session ID', PAD + 20, y);
+            ctx.fillStyle = INK; ctx.font = font(26, '600'); ctx.textAlign = 'right';
+            ctx.fillText(elide(d.sessionNo, inner * 0.6, 26, '600'), W - PAD - 20, y);
+            ctx.textAlign = 'left';
+            y += 40;
+        });
+        // Details card
+        const detailRows = [
+            ['Completion Time', d.completion], ['Transaction ID', d.txnId],
+            ['Reference', d.reference], ['Application', d.application],
+            ['Payment Type', d.txnType], ['From', d.senderName + ' (' + d.senderAccount + ')']
+        ];
+        push(() => {
+            detailRows.forEach((r) => {
+                y += 62;
+                ctx.fillStyle = SUB; ctx.font = font(26, '500');
+                ctx.fillText(r[0], PAD + 20, y + 8);
+                const labelW = ctx.measureText(r[0]).width;
+                ctx.fillStyle = INK; ctx.font = font(26, '600'); ctx.textAlign = 'right';
+                ctx.fillText(elide(r[1], inner - labelW - 80, 26, '600'), W - PAD - 20, y + 8);
+                ctx.textAlign = 'left';
+            });
+            y += 30;
         });
         // Footer
         push(() => {
+            y += 30;
             ctx.textAlign = 'center';
             ctx.fillStyle = SUB; ctx.font = font(24, '500');
             ctx.fillText('Thank you for using Goldltm', cx, y);
@@ -2212,6 +2274,23 @@ const Receipt = {
         y = 0;
         layout.forEach((fn) => fn());
         return canvas;
+    },
+
+    copyValue(el) {
+        const text = (el && el.getAttribute && el.getAttribute('data-value')) || '';
+        let ok = false;
+        try {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.setAttribute('readonly', '');
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            ok = document.execCommand('copy');
+            document.body.removeChild(ta);
+        } catch (e) { ok = false; }
+        Toast.show(ok ? 'Copied to clipboard' : 'Could not copy', ok ? 'success' : 'error');
     },
 
     _roundRect(ctx, x, y, w, h, r) {
