@@ -11,8 +11,9 @@ if (localPropsFile.exists()) {
     localPropsFile.withInputStream { localProps.load(it) }
 }
 
-def propOr(String key, String fallback) {
-    return localProps.getProperty(key, fallback)
+// Closure (not a def method) so it can capture the script-local localProps.
+def propOr = { String key, String fallback ->
+    localProps.getProperty(key, fallback)
 }
 
 android {
