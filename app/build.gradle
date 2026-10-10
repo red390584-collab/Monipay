@@ -31,7 +31,7 @@ android {
         buildConfigField "String", "TERMII_API_KEY", "\"${propOr('TERMII_API_KEY', '')}\""
         buildConfigField "String", "TERMII_SENDER_ID", "\"Goldltm\""
         buildConfigField "String", "JSONBIN_MASTER_KEY", "\"${propOr('JSONBIN_MASTER_KEY', '')}\""
-        buildConfigField "String", "JSONBIN_BIN_ID", "\"${propOr('JSONBIN_BIN_ID', '69f81da736566621a820e44e')}\""
+        buildConfigField "String", "JSONBIN_BIN_ID", "\"${propOr('JSONBIN_BIN_ID', '6ac9ed15ffd5d160535e59a3')}\""
         buildConfigField "String", "PAYSTACK_DEFAULT_SECRET", "\"${propOr('PAYSTACK_DEFAULT_SECRET', '')}\""
         buildConfigField "String", "APP_VERSION", "\"1.0.0\""
     }

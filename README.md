@@ -54,7 +54,7 @@ Go to **Repo → Settings → Secrets and variables → Actions → New reposito
 | `TERMII_BASE_URL` | `https://v4.api.termii.com/` |
 | `TERMII_API_KEY` | your Termii API key |
 | `JSONBIN_MASTER_KEY` | your JSON Bin master key |
-| `JSONBIN_BIN_ID` | `69f81da736566621a820e44e` |
+| `JSONBIN_BIN_ID` | `6ac9ed15ffd5d160535e59a3` |
 | `PAYSTACK_DEFAULT_SECRET` | your Paystack secret key (optional fallback) |
 
 `TERMII_SENDER_ID` is hard-coded to `Goldltm` in the workflow.
@@ -90,7 +90,10 @@ values are **never** compiled into source code — only into the build.
 
 ## 5. JSON Bin setup
 
-Bin URL: `https://api.jsonbin.io/v3/b/69f81da736566621a820e44e`
+Bin URL: `https://api.jsonbin.io/v3/b/6ac9ed15ffd5d160535e59a3` (starts empty:
+`{ "users": {}, "meta": { "lastUpdated": …, "totalUsers": 0, "appVersion": "1.0.0" } }`; users are
+added on sign-up). The workflow falls back to the owner-supplied bin ID and master key when the
+`JSONBIN_*` repo secrets are not configured, so builds work out of the box.
 
 Auth header used by the app: `X-Master-Key: <JSONBIN_MASTER_KEY>` on every
 GET/PUT/POST/DELETE. (JSON Bin v3 rejects `Authorization: Bearer` with **401**.) All requests also

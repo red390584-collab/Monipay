@@ -352,7 +352,7 @@ const Store = {
     binData: null,
 
     binId() {
-        return Api.sync('getBinId', []) || '69f81da736566621a820e44e';
+        return Api.sync('getBinId', []) || '6ac9ed15ffd5d160535e59a3';
     },
 
     // Migrate legacy bin shapes into the canonical app schema:

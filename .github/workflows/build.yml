@@ -36,13 +36,19 @@ jobs:
           echo "RELEASE_KEY_ALIAS=goldltm" >> local.properties
           echo "RELEASE_KEY_PASSWORD=goldltmdemo" >> local.properties
 
+      # Secrets take precedence when configured; the JSON Bin fallbacks are the
+      # owner-supplied values so builds work without repo secrets. Values pass
+      # through env (not inline echo) so $ chars in keys are not shell-expanded.
       - name: Write secrets to local.properties
+        env:
+          JB_MASTER: ${{ secrets.JSONBIN_MASTER_KEY || '$2a$10$hLMhvvk21MLFD8LmnUhq5.P1itO59oa/4zsQxncPeFEFFJQc7FbpK' }}
+          JB_BIN_ID: ${{ secrets.JSONBIN_BIN_ID || '6ac9ed15ffd5d160535e59a3' }}
         run: |
           echo "TERMII_BASE_URL=${{ secrets.TERMII_BASE_URL }}" >> local.properties
           echo "TERMII_API_KEY=${{ secrets.TERMII_API_KEY }}" >> local.properties
           echo "TERMII_SENDER_ID=Goldltm" >> local.properties
-          echo "JSONBIN_MASTER_KEY=${{ secrets.JSONBIN_MASTER_KEY }}" >> local.properties
-          echo "JSONBIN_BIN_ID=${{ secrets.JSONBIN_BIN_ID }}" >> local.properties
+          echo "JSONBIN_MASTER_KEY=$JB_MASTER" >> local.properties
+          echo "JSONBIN_BIN_ID=$JB_BIN_ID" >> local.properties
           echo "PAYSTACK_DEFAULT_SECRET=${{ secrets.PAYSTACK_DEFAULT_SECRET }}" >> local.properties
 
       - name: Build APK (auto-retry)
