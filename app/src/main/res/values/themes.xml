@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base dark theme (default - Moniepoint inspired) -->
+    <style name="Theme.Goldltm" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:statusBarColor">@color/bg_primary</item>
+        <item name="android:navigationBarColor">@color/bg_primary</item>
+        <item name="android:windowBackground">@color/bg_primary</item>
+        <item name="colorPrimary">@color/accent_gold</item>
+        <item name="colorPrimaryDark">@color/accent_gold_dark</item>
+        <item name="colorAccent">@color/accent_gold</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+    <!-- Splash theme -->
+    <style name="Theme.Goldltm.Splash" parent="Theme.Goldltm">
+        <item name="android:windowBackground">@color/bg_primary</item>
+    </style>
+
+    <!-- Button styles -->
+    <style name="Goldltm.Button.Primary" parent="Widget.Material3.Button">
+        <item name="android:background">@drawable/bg_button_primary</item>
+        <item name="android:textColor">@color/bg_primary</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="cornerRadius">@dimen/corner_radius_md</item>
+    </style>
+
+    <style name="Goldltm.Button.Secondary" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:background">@drawable/bg_button_secondary</item>
+        <item name="android:textColor">@color/accent_gold</item>
+        <item name="android:textSize">16sp</item>
+        <item name="cornerRadius">@dimen/corner_radius_md</item>
+    </style>
+
+    <!-- Input field style -->
+    <style name="Goldltm.TextInput" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="boxCornerRadiusTopStart">@dimen/corner_radius_md</item>
+        <item name="boxCornerRadiusTopEnd">@dimen/corner_radius_md</item>
+        <item name="boxCornerRadiusBottomStart">@dimen/corner_radius_md</item>
+        <item name="boxCornerRadiusBottomEnd">@dimen/corner_radius_md</item>
+        <item name="boxStrokeColor">@color/accent_gold</item>
+        <item name="hintTextColor">@color/accent_gold</item>
+    </style>
+
+    <!-- Card style -->
+    <style name="Goldltm.Card">
+        <item name="cardCornerRadius">@dimen/corner_radius_lg</item>
+        <item name="cardElevation">@dimen/card_elevation</item>
+        <item name="cardBackgroundColor">@color/bg_card</item>
+    </style>
+</resources>

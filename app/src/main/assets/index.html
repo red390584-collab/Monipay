@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#001E2D">
+    <title>Goldltm</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- ========== SPLASH ========== -->
+    <div id="splash-screen" class="screen">
+        <div class="splash-container">
+            <div class="splash-logo-wrapper">
+                <div class="splash-logo">
+                    <svg viewBox="0 0 100 100" width="120" height="120">
+                        <circle cx="50" cy="50" r="45" fill="#001E2D"/>
+                        <circle cx="50" cy="50" r="40" fill="none" stroke="#FFDA6A" stroke-width="3"/>
+                        <path d="M62 34 L62 60 C62 68.5 55 74 46 74 C36 74 28 66 28 55 C28 46 34 39 44 37 L60 35 L60 45 L46 45 C40 45 36 49 36 55 C36 61 40 65 46 65 C51 65 54 62 54 58 L54 52 L46 52 L46 44 L62 44 Z" fill="#FFDA6A"/>
+                    </svg>
+                </div>
+            </div>
+            <h1 class="splash-title">Goldltm</h1>
+            <p class="splash-subtitle">Secure Digital Banking</p>
+            <div class="splash-loader"><div class="loader-bar"></div></div>
+        </div>
+    </div>
+
+    <!-- ========== ONBOARDING ========== -->
+    <div id="onboarding-screen" class="screen">
+        <div class="onboarding-container">
+            <div class="onboarding-progress">
+                <div class="progress-bar"><div id="onboarding-progress-fill" class="progress-fill"></div></div>
+                <div class="progress-dots" id="onboarding-dots"></div>
+            </div>
+            <div class="onboarding-content">
+
+                <div class="onboarding-slide" data-slide="1">
+                    <div class="slide-illustration">
+                        <div class="illustration-circle">
+                            <svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="#FFDA6A" stroke-width="1.5">
+                                <rect x="2" y="6" width="20" height="13" rx="2"/>
+                                <path d="M2 10h20"/>
+                                <path d="M6 15h4"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <h2 class="slide-title">Welcome to Goldltm</h2>
+                    <p class="slide-description">Your secure digital banking experience. Manage your money, send transfers, pay bills and more — all in one place.</p>
+                    <button class="btn-primary" onclick="Onboarding.nextSlide()">Get Started</button>
+                </div>
+
+                <div class="onboarding-slide" data-slide="2" style="display:none">
+                    <h2 class="slide-title">Create Your Account</h2>
+                    <p class="slide-description">Enter your details to get started</p>
+                    <div class="form-group">
+                        <label>Phone Number</label>
+                        <input type="tel" id="onb-phone" placeholder="8123456789" maxlength="11" inputmode="numeric">
+                    </div>
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input type="email" id="onb-email" placeholder="you@example.com">
+                    </div>
+                    <button class="btn-primary" onclick="Onboarding.nextSlide()">Continue</button>
+                </div>
+
+                <div class="onboarding-slide" data-slide="3" style="display:none">
+                    <h2 class="slide-title">Set Your Credentials</h2>
+                    <p class="slide-description">Create a secure password and 4-digit transaction PIN</p>
+                    <div class="form-group">
+                        <label>Password (min 8 characters)</label>
+                        <input type="password" id="onb-password" placeholder="Enter password">
+                    </div>
+                    <div class="form-group">
+                        <label>Confirm Password</label>
+                        <input type="password" id="onb-confirm-password" placeholder="Confirm password">
+                    </div>
+                    <div class="form-group">
+                        <label>Transaction PIN</label>
+                        <input type="password" id="onb-pin" placeholder="4-digit PIN" maxlength="4" inputmode="numeric">
+                    </div>
+                    <div class="form-group">
+                        <label>Confirm PIN</label>
+                        <input type="password" id="onb-confirm-pin" placeholder="Confirm PIN" maxlength="4" inputmode="numeric">
+                    </div>
+                    <button class="btn-primary" onclick="Onboarding.nextSlide()">Continue</button>
+                </div>
+
+                <div class="onboarding-slide" data-slide="4" style="display:none">
+                    <h2 class="slide-title">Security Setup</h2>
+                    <p class="slide-description">Enhance your account security</p>
+                    <div class="toggle-group">
+                        <div class="toggle-item">
+                            <div class="toggle-info">
+                                <span class="toggle-label">Enable Biometric Login</span>
+                                <span class="toggle-desc" id="onb-biometric-desc">Use fingerprint for quick access</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="onb-biometric">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                    <button class="btn-primary" onclick="Onboarding.createAccount()">Create Account</button>
+                </div>
+
+            </div>
+            <div class="onboarding-footer">
+                <button class="btn-text" id="skip-btn" onclick="Onboarding.skip()">Skip</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== LOGIN ========== -->
+    <div id="login-screen" class="screen">
+        <div class="login-container">
+            <div class="login-header">
+                <div class="login-logo">
+                    <svg viewBox="0 0 100 100" width="64" height="64">
+                        <circle cx="50" cy="50" r="45" fill="#001E2D"/>
+                        <circle cx="50" cy="50" r="40" fill="none" stroke="#FFDA6A" stroke-width="3"/>
+                        <path d="M62 34 L62 60 C62 68.5 55 74 46 74 C36 74 28 66 28 55 C28 46 34 39 44 37 L60 35 L60 45 L46 45 C40 45 36 49 36 55 C36 61 40 65 46 65 C51 65 54 62 54 58 L54 52 L46 52 L46 44 L62 44 Z" fill="#FFDA6A"/>
+                    </svg>
+                </div>
+                <h1 class="login-title">Goldltm</h1>
+                <p class="login-subtitle">Sign in to your account</p>
+            </div>
+            <div class="form-group">
+                <label>Phone Number</label>
+                <input type="tel" id="login-phone" placeholder="8123456789" maxlength="11" inputmode="numeric">
+            </div>
+            <div class="form-group">
+                <label>Transaction PIN</label>
+                <input type="password" id="login-pin" placeholder="Enter your PIN" maxlength="4" inputmode="numeric">
+            </div>
+            <button class="btn-primary btn-full" onclick="Auth.login()">Sign In</button>
+            <div class="login-links">
+                <button class="btn-text" onclick="Navigation.show('forgot-pin')">Forgot PIN?</button>
+            </div>
+            <div class="legal-disclaimer">
+                <small>This is an educational/demo application. All balances and transactions are simulated. Goldltm is not affiliated with Moniepoint, Paystack, Termii, or any financial institution.</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== FORGOT PIN ========== -->
+    <div id="forgot-pin-screen" class="screen">
+        <div class="forgot-container">
+            <button class="btn-back" onclick="Navigation.show('login')">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                Back
+            </button>
+            <h1 class="forgot-title">Reset Your PIN</h1>
+            <p class="forgot-subtitle">Enter your registered email to receive a PIN reset link</p>
+            <div class="form-group">
+                <label>Email Address</label>
+                <input type="email" id="forgot-email" placeholder="you@example.com">
+            </div>
+            <button class="btn-primary btn-full" onclick="Auth.resetPin()">Send Reset Link</button>
+            <div class="legal-disclaimer"><small>This is a demo application. No real emails are sent.</small></div>
+        </div>
+    </div>
+
+    <!-- ========== PIN ENTRY OVERLAY ========== -->
+    <div id="pin-entry-screen" class="screen">
+        <div class="pin-overlay-content">
+            <h2 class="pin-title" id="pin-title">Enter PIN</h2>
+            <div class="pin-dots" id="pin-dots">
+                <span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            </div>
+            <div class="pin-error" id="pin-error"></div>
+            <div class="pin-numpad" id="pin-numpad"></div>
+            <button class="btn-text" style="width:100%; margin-top:8px" onclick="PinEntry.cancel()">Cancel</button>
+        </div>
+    </div>
+
+    <!-- ========== MAIN APP (DASHBOARD) ========== -->
+    <div id="main-app-screen" class="screen">
+        <div class="app-header">
+            <div class="header-left">
+                <div class="header-avatar" onclick="Navigation.show('profile')">
+                    <span class="avatar-placeholder" id="header-avatar-text">U</span>
+                </div>
+                <div class="header-greeting">
+                    <span class="header-greeting-time" id="greeting-text">Good morning</span>
+                    <span class="header-greeting-name" id="greeting-name">User</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <button class="header-icon-btn" style="position:relative" onclick="Toast.show('No new notifications', 'success')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+                    <span class="header-notification-badge"></span>
+                </button>
+            </div>
+        </div>
+
+        <div class="balance-card">
+            <div class="balance-header">
+                <span class="balance-label">Total Balance</span>
+                <button class="balance-eye-btn" id="balance-toggle-btn" onclick="Dashboard.toggleBalance()">
+                    <svg id="eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg id="eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><path d="M1 1l22 22"/><path d="M9.9 9.9a3 3 0 004.2 4.2"/></svg>
+                </button>
+            </div>
+            <div class="balance-amount" id="balance-amount"><span class="currency">₦</span>0.00</div>
+            <div class="balance-footer">
+                <span class="balance-account">Account <strong id="balance-account-number">---</strong></span>
+                <span class="balance-today" id="balance-today-change"></span>
+            </div>
+        </div>
+
+        <div class="section-header">
+            <span class="section-title">Quick Actions</span>
+        </div>
+        <div class="quick-actions-grid">
+            <button class="quick-action-btn" onclick="SendMoney.open()">
+                <div class="quick-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+                <span class="quick-action-label">Send Money</span>
+            </button>
+            <button class="quick-action-btn" onclick="Airtime.open()">
+                <div class="quick-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg></div>
+                <span class="quick-action-label">Airtime</span>
+            </button>
+            <button class="quick-action-btn" onclick="Data.open()">
+                <div class="quick-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0114.08 0M1.42 9a16 16 0 0121.16 0M8.53 16.11a6 6 0 016.95 0M12 20h.01"/></svg></div>
+                <span class="quick-action-label">Data</span>
+            </button>
+            <button class="quick-action-btn" onclick="Bills.open('electricity')">
+                <div class="quick-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+                <span class="quick-action-label">Electricity</span>
+            </button>
+            <button class="quick-action-btn" onclick="Bills.open('cable')">
+                <div class="quick-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2"/><path d="M17 2l-5 5-5-5"/></svg></div>
+                <span class="quick-action-label">Cable TV</span>
+            </button>
+            <button class="quick-action-btn" onclick="Bills.open('internet')">
+                <div class="quick-action-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg></div>
+                <span class="quick-action-label">Internet/Edu</span>
+            </button>
+        </div>
+
+        <div class="transactions-section">
+            <div class="recent-transactions-header">
+                <span class="recent-transactions-title">Recent Transactions</span>
+                <span class="section-link" onclick="BottomNav.go('transactions')">View All</span>
+            </div>
+            <div class="recent-transactions-list" id="recent-transactions"></div>
+        </div>
+
+        <div class="bottom-nav">
+            <div class="nav-item active" data-tab="home" onclick="BottomNav.go('home')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <span class="nav-item-label">Home</span>
+            </div>
+            <div class="nav-item inactive" data-tab="transactions" onclick="BottomNav.go('transactions')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                <span class="nav-item-label">Transactions</span>
+            </div>
+            <div class="nav-item inactive" data-tab="cards" onclick="BottomNav.go('cards')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                <span class="nav-item-label">Cards</span>
+            </div>
+            <div class="nav-item inactive" data-tab="profile" onclick="BottomNav.go('profile')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span class="nav-item-label">Profile</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== TRANSACTIONS HISTORY ========== -->
+    <div id="transactions-screen" class="screen">
+        <div class="transactions-header">
+            <button class="transactions-back-btn" onclick="Navigation.show('main-app')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </button>
+            <span class="transactions-title">Transactions</span>
+            <span style="width:40px"></span>
+        </div>
+        <div style="padding-top:var(--header-height)"></div>
+        <div class="transactions-filter">
+            <button class="filter-chip active" data-filter="all" onclick="Transactions.setFilter('all', this)">All</button>
+            <button class="filter-chip" data-filter="credit" onclick="Transactions.setFilter('credit', this)">Credit</button>
+            <button class="filter-chip" data-filter="debit" onclick="Transactions.setFilter('debit', this)">Debit</button>
+        </div>
+        <div class="transactions-list" id="all-transactions"></div>
+        <div class="bottom-nav">
+            <div class="nav-item inactive" data-tab="home" onclick="BottomNav.go('home')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <span class="nav-item-label">Home</span>
+            </div>
+            <div class="nav-item active" data-tab="transactions" onclick="BottomNav.go('transactions')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                <span class="nav-item-label">Transactions</span>
+            </div>
+            <div class="nav-item inactive" data-tab="cards" onclick="BottomNav.go('cards')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                <span class="nav-item-label">Cards</span>
+            </div>
+            <div class="nav-item inactive" data-tab="profile" onclick="BottomNav.go('profile')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span class="nav-item-label">Profile</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== CARDS ========== -->
+    <div id="cards-screen" class="screen">
+        <div class="transactions-header">
+            <button class="transactions-back-btn" onclick="Navigation.show('main-app')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </button>
+            <span class="transactions-title">Cards</span>
+            <span style="width:40px"></span>
+        </div>
+        <div style="padding-top:var(--header-height)"></div>
+        <div class="cards-list">
+            <div id="cards-list-content"></div>
+            <button class="card-add-btn" onclick="Cards.addCard()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add New Card
+            </button>
+        </div>
+        <div class="bottom-nav">
+            <div class="nav-item inactive" data-tab="home" onclick="BottomNav.go('home')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <span class="nav-item-label">Home</span>
+            </div>
+            <div class="nav-item inactive" data-tab="transactions" onclick="BottomNav.go('transactions')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                <span class="nav-item-label">Transactions</span>
+            </div>
+            <div class="nav-item active" data-tab="cards" onclick="BottomNav.go('cards')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                <span class="nav-item-label">Cards</span>
+            </div>
+            <div class="nav-item inactive" data-tab="profile" onclick="BottomNav.go('profile')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span class="nav-item-label">Profile</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== PROFILE ========== -->
+    <div id="profile-screen" class="screen">
+        <div class="transactions-header">
+            <button class="transactions-back-btn" onclick="Navigation.show('main-app')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </button>
+            <span class="transactions-title">Profile</span>
+            <span style="width:40px"></span>
+        </div>
+        <div style="padding-top:var(--header-height)"></div>
+        <div class="profile-section">
+            <div class="profile-header-card">
+                <div class="profile-avatar-large">
+                    <span class="avatar-placeholder" id="profile-avatar-text">U</span>
+                    <img id="profile-avatar-img" style="display:none" alt="avatar">
+                </div>
+                <div class="profile-info">
+                    <div class="profile-name" id="profile-name">User</div>
+                    <div class="profile-email" id="profile-email">user@example.com</div>
+                    <div class="profile-account-badge">
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        <span id="profile-account-number">---</span>
+                    </div>
+                </div>
+                <button class="btn-text" onclick="Profile.editAvatar()">Edit</button>
+            </div>
+
+            <div class="profile-info-section">
+                <div class="profile-info-row"><span class="profile-info-label">Full Name</span><span class="profile-info-value" id="profile-fullname">---</span></div>
+                <div class="profile-info-row"><span class="profile-info-label">Phone</span><span class="profile-info-value" id="profile-phone">---</span></div>
+                <div class="profile-info-row"><span class="profile-info-label">Email</span><span class="profile-info-value" id="profile-email-value">---</span></div>
+                <div class="profile-info-row"><span class="profile-info-label">BVN</span><span class="profile-info-value" id="profile-bvn">---</span></div>
+                <div class="profile-info-row"><span class="profile-info-label">Wallet Address</span><span class="profile-info-value" id="profile-wallet">---</span></div>
+            </div>
+
+            <div class="profile-menu">
+                <div class="profile-menu-item" onclick="Navigation.show('settings')">
+                    <div class="profile-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>
+                    <div class="profile-menu-content">
+                        <div class="profile-menu-title">Settings</div>
+                        <div class="profile-menu-subtitle">Theme, API keys, notifications</div>
+                    </div>
+                    <svg class="profile-menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+                </div>
+                <div class="profile-menu-item" onclick="Navigation.show('security')">
+                    <div class="profile-menu-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+                    <div class="profile-menu-content">
+                        <div class="profile-menu-title">Security Centre</div>
+                        <div class="profile-menu-subtitle">PIN, password, biometrics</div>
+                    </div>
+                    <svg class="profile-menu-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+                </div>
+                <div class="profile-menu-item" onclick="Profile.logout()">
+                    <div class="profile-menu-icon" style="color:var(--error)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div>
+                    <div class="profile-menu-content">
+                        <div class="profile-menu-title" style="color:var(--error)">Logout</div>
+                        <div class="profile-menu-subtitle">Sign out of your account</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="legal-disclaimer" style="text-align:center; padding:16px">
+                <small>This is an educational/demo application. All balances and transactions are simulated. Goldltm is not affiliated with Moniepoint, Paystack, Termii, or any financial institution.</small>
+            </div>
+        </div>
+        <div class="bottom-nav">
+            <div class="nav-item inactive" data-tab="home" onclick="BottomNav.go('home')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <span class="nav-item-label">Home</span>
+            </div>
+            <div class="nav-item inactive" data-tab="transactions" onclick="BottomNav.go('transactions')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                <span class="nav-item-label">Transactions</span>
+            </div>
+            <div class="nav-item inactive" data-tab="cards" onclick="BottomNav.go('cards')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                <span class="nav-item-label">Cards</span>
+            </div>
+            <div class="nav-item active" data-tab="profile" onclick="BottomNav.go('profile')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span class="nav-item-label">Profile</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== SETTINGS ========== -->
+    <div id="settings-screen" class="screen">
+        <div class="transactions-header">
+            <button class="transactions-back-btn" onclick="Navigation.goBack()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </button>
+            <span class="transactions-title">Settings</span>
+            <span style="width:40px"></span>
+        </div>
+        <div style="padding-top:var(--header-height)"></div>
+        <div class="settings-list">
+            <div class="settings-section">
+                <div class="settings-section-title">Appearance</div>
+                <div class="settings-item">
+                    <div class="settings-item-left">
+                        <div class="settings-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg></div>
+                        <div class="settings-item-info">
+                            <span class="settings-item-title">Dark Mode</span>
+                            <span class="settings-item-desc">Toggle dark/light theme</span>
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="theme-toggle" onchange="Settings.toggleTheme(this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-section-title">Paystack API Key</div>
+                <div class="apikey-card">
+                    <div class="apikey-card-header">
+                        <span class="settings-item-title">Paystack Secret Key</span>
+                        <span class="settings-item-desc" id="paystack-key-status">Not set</span>
+                    </div>
+                    <div class="settings-input-group" style="display:flex; gap:8px">
+                        <input type="password" class="settings-input" id="paystack-key-input" placeholder="sk_live_..." style="flex:1; width:auto">
+                        <button class="settings-btn save" onclick="Settings.savePaystackKey()">Save</button>
+                        <button class="settings-btn clear" onclick="Settings.clearPaystackKey()">Clear</button>
+                    </div>
+                    <div class="apikey-warning" id="paystack-warning">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        <span>Bank name lookups will use mock data without an API key</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-section-title">Notifications</div>
+                <div class="settings-item">
+                    <div class="settings-item-left">
+                        <div class="settings-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg></div>
+                        <div class="settings-item-info">
+                            <span class="settings-item-title">Credit SMS Alerts</span>
+                            <span class="settings-item-desc">Receive SMS on incoming funds</span>
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="notif-credit-sms" checked onchange="Settings.toggleNotif('creditSms', this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="settings-item">
+                    <div class="settings-item-left">
+                        <div class="settings-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg></div>
+                        <div class="settings-item-info">
+                            <span class="settings-item-title">Push Notifications</span>
+                            <span class="settings-item-desc">In-app transaction alerts</span>
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="notif-push" checked onchange="Settings.toggleNotif('push', this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <div class="settings-section-title">About</div>
+                <div class="settings-info-section">
+                    <div class="profile-info-row"><span class="profile-info-label">Termii Sender ID</span><span class="profile-info-value">Goldltm</span></div>
+                    <div class="profile-info-row"><span class="profile-info-label">App Version</span><span class="profile-info-value" id="settings-app-version">1.0.0</span></div>
+                    <div class="profile-info-row"><span class="profile-info-label">JSON Bin ID</span><span class="profile-info-value" id="settings-bin-id">---</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== SECURITY CENTRE ========== -->
+    <div id="security-screen" class="screen">
+        <div class="transactions-header">
+            <button class="transactions-back-btn" onclick="Navigation.goBack()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </button>
+            <span class="transactions-title">Security Centre</span>
+            <span style="width:40px"></span>
+        </div>
+        <div style="padding-top:var(--header-height)"></div>
+        <div class="security-list">
+            <div class="security-item" onclick="Security.changePin()">
+                <div class="security-item-content">
+                    <div class="security-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
+                    <div class="security-item-info">
+                        <span class="security-item-title">Change PIN</span>
+                        <span class="security-item-desc">Update your transaction PIN</span>
+                    </div>
+                </div>
+                <span class="security-item-action">Change</span>
+            </div>
+            <div class="security-item" onclick="Security.changePassword()">
+                <div class="security-item-content">
+                    <div class="security-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+                    <div class="security-item-info">
+                        <span class="security-item-title">Change Password</span>
+                        <span class="security-item-desc">Update your login password</span>
+                    </div>
+                </div>
+                <span class="security-item-action">Change</span>
+            </div>
+            <div class="security-item" onclick="Security.changePin()">
+                <div class="security-item-content">
+                    <div class="security-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a5 5 0 015 5v3a5 5 0 01-10 0V7a5 5 0 015-5z"/><path d="M3 21v-2a5 5 0 015-5h8a5 5 0 015 5v2"/></svg></div>
+                    <div class="security-item-info">
+                        <span class="security-item-title">Biometric Login</span>
+                        <span class="security-item-desc" id="security-biometric-desc">Check availability</span>
+                    </div>
+                </div>
+                <span class="security-item-action" id="security-biometric-status">--</span>
+            </div>
+            <div class="security-item">
+                <div class="security-item-content">
+                    <div class="security-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg></div>
+                    <div class="security-item-info">
+                        <span class="security-item-title">Device Management</span>
+                        <span class="security-item-desc" id="security-device-info">This device</span>
+                    </div>
+                </div>
+                <span class="security-item-action">Active</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== SEND MONEY ========== -->
+    <div id="send-money-screen" class="screen">
+        <div class="transactions-header">
+            <button class="transactions-back-btn" onclick="Navigation.goBack()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </button>
+            <span class="transactions-title">Send Money</span>
+            <span style="width:40px"></span>
+        </div>
+        <div style="padding-top:var(--header-height)"></div>
+        <div class="send-tabs">
+            <button class="send-tab active" data-tab="app" onclick="SendMoney.setTab('app')">Goldltm Wallet</button>
+            <button class="send-tab" data-tab="bank" onclick="SendMoney.setTab('bank')">Bank Transfer</button>
+            <button class="send-tab" data-tab="beneficiary" onclick="SendMoney.setTab('beneficiary')">Beneficiaries</button>
+        </div>
+        <div class="send-content">
+
+            <div id="send-app-content">
+                <div class="send-form">
+                    <div class="send-form-title">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        Send to Goldltm user
+                    </div>
+                    <div class="send-input-group">
+                        <label style="font-size:13px; color:var(--text-secondary); display:block; margin-bottom:8px">Account number (019...), phone, or wallet address</label>
+                        <div style="display:flex; gap:8px">
+                            <input type="text" id="send-wallet-input" class="send-narration-input" style="flex:1" placeholder="0198123456789 or GL_...">
+                            <button class="settings-btn save" onclick="SendMoney.fetchRecipient()" style="height:46px">Fetch</button>
+                        </div>
+                        <div id="send-recipient-card" style="display:none" class="send-recipient-display">
+                            <div class="send-recipient-avatar" id="send-recipient-initial">?</div>
+                            <div class="send-recipient-info">
+                                <div class="send-recipient-name" id="send-recipient-name">---</div>
+                                <div class="send-recipient-account" id="send-recipient-account">---</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="send-bank-content" style="display:none">
+                <div class="send-form">
+                    <div class="send-form-title">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/></svg>
+                        Bank Transfer
+                    </div>
+                    <div class="send-input-group">
+                        <label style="font-size:13px; color:var(--text-secondary); display:block; margin-bottom:8px">Select Bank</label>
+                        <select id="send-bank-select" class="send-bank-select" onchange="SendMoney.onBankSelected()">
+                            <option value="">Choose a bank</option>
+                        </select>
+                    </div>
+                    <div class="send-input-group">
+                        <label style="font-size:13px; color:var(--text-secondary); display:block; margin-bottom:8px">Account Number</label>
+                        <div style="display:flex; gap:8px">
+                            <input type="tel" id="send-bank-account" class="send-narration-input" style="flex:1" placeholder="0123456789" maxlength="10" inputmode="numeric">
+                            <button class="settings-btn save" onclick="SendMoney.fetchBankRecipient()" style="height:46px">Fetch</button>
+                        </div>
+                        <div id="send-bank-recipient-card" style="display:none" class="send-recipient-display">
+                            <div class="send-recipient-avatar">?</div>
+                            <div class="send-recipient-info">
+                                <div class="send-recipient-name" id="send-bank-recipient-name">---</div>
+                                <div class="send-recipient-account" id="send-bank-recipient-account">---</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="send-beneficiary-content" style="display:none">
+                <div id="beneficiaries-list"></div>
+            </div>
+
+            <div class="send-form">
+                <div class="send-form-title">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                    Amount &amp; Narration
+                </div>
+                <div class="send-input-group">
+                    <div class="send-amount-input">
+                        <span class="send-amount-prefix">₦</span>
+                        <input type="tel" id="send-amount" placeholder="0.00" inputmode="decimal">
+                    </div>
+                </div>
+                <div class="send-input-group">
+                    <textarea id="send-narration" class="send-narration-input" rows="2" placeholder="What's this for? (optional)"></textarea>
+                </div>
+            </div>
+
+            <div class="send-summary" id="send-summary">
+                <div class="send-summary-row">
+                    <span class="send-summary-label">Recipient</span>
+                    <span class="send-summary-value" style="color:var(--text-muted)">Not selected</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="send-pin-footer">
+            <div class="send-pin-row">
+                <span class="send-pin-label">PIN</span>
+                <div class="send-pin-input-row">
+                    <input type="password" id="send-pin" placeholder="••••" maxlength="4" inputmode="numeric">
+                </div>
+                <button class="send-btn-confirm" id="send-confirm-btn" onclick="SendMoney.confirm()">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== AIRTIME ========== -->
+    <div id="airtime-screen" class="screen">
+        <div class="transactions-header">
+            <button class="transactions-back-btn" onclick="Navigation.goBack()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </button>
+            <span class="transactions-title">Airtime</span>
+            <span style="width:40px"></span>
+        </div>
+        <div style="padding-top:var(--header-height)"></div>
+        <div class="send-content">
+            <div class="send-form">
+                <div class="send-form-title">Select Network</div>
+                <div class="airtime-networks" id="airtime-networks"></div>
+            </div>
+            <div class="send-form">
+                <div class="send-form-title">Phone Number</div>
+                <div class="send-input-group">
+                    <input type="tel" id="airtime-phone" class="send-narration-input" placeholder="8123456789" maxlength="11" inputmode="numeric">
+                </div>
+                <div class="send-form-title" style="margin-top:16px">Amount</div>
+                <div class="send-input-group">
+                    <div class="send-amount-input">
+                        <span class="send-amount-prefix">₦</span>
+                        <input type="tel" id="airtime-amount" placeholder="100" inputmode="numeric">
+                    </div>
+                </div>
+                <div class="send-form-title" style="margin-top:16px">PIN</div>
+                <div class="send-input-group">
+                    <input type="password" id="airtime-pin" class="send-narration-input" placeholder="••••" maxlength="4" inputmode="numeric">
+                </div>
+                <button class="btn-primary" onclick="Airtime.confirm()">Buy Airtime</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== DATA ========== -->
+    <div id="data-screen" class="screen">
+        <div class="transactions-header">
+            <button class="transactions-back-btn" onclick="Navigation.goBack()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </button>
+            <span class="transactions-title">Data Bundle</span>
+            <span style="width:40px"></span>
+        </div>
+        <div style="padding-top:var(--header-height)"></div>
+        <div class="send-content">
+            <div class="send-form">
+                <div class="send-form-title">Select Network</div>
+                <div class="airtime-networks" id="data-networks"></div>
+            </div>
+            <div class="send-form" id="data-plans-form" style="display:none">
+                <div class="send-form-title">Select Plan</div>
+                <div class="network-plans" id="data-plans"></div>
+                <div class="send-form-title" style="margin-top:16px">Phone Number</div>
+                <div class="send-input-group">
+                    <input type="tel" id="data-phone" class="send-narration-input" placeholder="8123456789" maxlength="11" inputmode="numeric">
+                </div>
+                <div class="send-form-title" style="margin-top:16px">PIN</div>
+                <div class="send-input-group">
+                    <input type="password" id="data-pin" class="send-narration-input" placeholder="••••" maxlength="4" inputmode="numeric">
+                </div>
+                <button class="btn-primary" onclick="Data.confirm()">Buy Data</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== BILLS ========== -->
+    <div id="bills-screen" class="screen">
+        <div class="transactions-header">
+            <button class="transactions-back-btn" onclick="Navigation.goBack()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </button>
+            <span class="transactions-title" id="bills-title">Bills Payment</span>
+            <span style="width:40px"></span>
+        </div>
+        <div style="padding-top:var(--header-height)"></div>
+        <div class="send-content">
+            <div class="send-form">
+                <div class="send-form-title" id="bills-provider-label">Select Provider</div>
+                <div class="network-plans" id="bills-providers"></div>
+            </div>
+            <div class="send-form">
+                <div class="send-form-title" id="bills-id-label">Meter / Smartcard Number</div>
+                <div class="send-input-group">
+                    <input type="tel" id="bills-identifier" class="send-narration-input" placeholder="Enter number" inputmode="numeric">
+                </div>
+                <button class="settings-btn save" style="width:100%; height:44px; margin-bottom:16px" onclick="Bills.verifyCustomer()">Verify</button>
+                <div class="send-recipient-display" id="bills-customer-card" style="display:none">
+                    <div class="send-recipient-avatar">✓</div>
+                    <div class="send-recipient-info">
+                        <div class="send-recipient-name" id="bills-customer-name">---</div>
+                        <div class="send-recipient-account" id="bills-customer-meta">---</div>
+                    </div>
+                </div>
+                <div id="bills-bouquet-group" style="display:none">
+                    <div class="send-form-title" style="margin-top:16px">Bouquet / Plan</div>
+                    <div class="network-plans" id="bills-bouquets"></div>
+                </div>
+                <div class="send-form-title" style="margin-top:16px">Amount</div>
+                <div class="send-input-group">
+                    <div class="send-amount-input">
+                        <span class="send-amount-prefix">₦</span>
+                        <input type="tel" id="bills-amount" placeholder="0" inputmode="numeric">
+                    </div>
+                </div>
+                <div class="send-form-title" style="margin-top:16px">PIN</div>
+                <div class="send-input-group">
+                    <input type="password" id="bills-pin" class="send-narration-input" placeholder="••••" maxlength="4" inputmode="numeric">
+                </div>
+                <button class="btn-primary" onclick="Bills.confirm()">Pay</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== RECEIPT ========== -->
+    <div id="receipt-screen" class="screen">
+        <div class="transactions-header">
+            <button class="transactions-back-btn" onclick="Navigation.show('main-app')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            </button>
+            <span class="transactions-title">Receipt</span>
+            <span style="width:40px"></span>
+        </div>
+        <div style="padding-top:var(--header-height)"></div>
+        <div class="receipt-container" id="receipt-container"></div>
+        <div class="receipt-actions" style="padding:0 var(--screen-padding) 24px">
+            <button class="receipt-action-btn primary" onclick="Receipt.share()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                Share Receipt
+            </button>
+            <button class="receipt-action-btn secondary" onclick="Receipt.download()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download
+            </button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+# Secrets / local config — the CI workflow generates its own local.properties
+local.properties
+
+# Gradle / Android build outputs
+.gradle/
+build/
+app/build/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Signing material
+*.jks
+*.keystore
+
+# IDE
+.idea/
+*.iml
+.DS_Store

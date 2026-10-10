@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark theme (default) - Moniepoint inspired -->
+    <color name="bg_primary">#FF001E2D</color>
+    <color name="bg_secondary">#FF0A2A3D</color>
+    <color name="bg_card">#FF0F3347</color>
+    <color name="text_primary">#FFFFFFFF</color>
+    <color name="text_secondary">#FFB0C4D0</color>
+    <color name="accent_gold">#FFFFDA6A</color>
+    <color name="accent_gold_dark">#FFE6C44D</color>
+    <color name="border_color">#FF1A4A5E</color>
+    <color name="success">#FF4CAF50</color>
+    <color name="error">#FFF44336</color>
+
+    <!-- Light theme -->
+    <color name="light_bg_primary">#FFF5F7FA</color>
+    <color name="light_bg_secondary">#FFFFFFFF</color>
+    <color name="light_bg_card">#FFFFFFFF</color>
+    <color name="light_text_primary">#FF001E2D</color>
+    <color name="light_text_secondary">#FF5A6B7A</color>
+    <color name="light_accent_gold">#FFE6C44D</color>
+    <color name="light_border_color">#FFE0E6ED</color>
+</resources>

@@ -1,0 +1,61 @@
+name: Build Goldltm APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.5'
+
+      - name: Generate Gradle wrapper
+        run: gradle wrapper --gradle-version 8.5
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Generate release keystore
+        run: |
+          keytool -genkeypair -v -keystore goldltm-release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias goldltm -storepass goldltmdemo -keypass goldltmdemo -dname "CN=Goldltm, OU=Demo, O=Goldltm, L=Lagos, ST=Lagos, C=NG"
+          echo "RELEASE_STORE_FILE=goldltm-release.jks" >> local.properties
+          echo "RELEASE_STORE_PASSWORD=goldltmdemo" >> local.properties
+          echo "RELEASE_KEY_ALIAS=goldltm" >> local.properties
+          echo "RELEASE_KEY_PASSWORD=goldltmdemo" >> local.properties
+
+      - name: Write secrets to local.properties
+        run: |
+          echo "TERMII_BASE_URL=${{ secrets.TERMII_BASE_URL }}" >> local.properties
+          echo "TERMII_API_KEY=${{ secrets.TERMII_API_KEY }}" >> local.properties
+          echo "TERMII_SENDER_ID=Goldltm" >> local.properties
+          echo "JSONBIN_MASTER_KEY=${{ secrets.JSONBIN_MASTER_KEY }}" >> local.properties
+          echo "JSONBIN_BIN_ID=${{ secrets.JSONBIN_BIN_ID }}" >> local.properties
+          echo "PAYSTACK_DEFAULT_SECRET=${{ secrets.PAYSTACK_DEFAULT_SECRET }}" >> local.properties
+
+      - name: Build APK (auto-retry)
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 20
+          max_attempts: 5
+          retry_wait_seconds: 30
+          command: ./gradlew assembleRelease --no-daemon
+
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Goldltm-APK
+          path: app/build/outputs/apk/release/*.apk
