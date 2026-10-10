@@ -74,7 +74,7 @@ class MainActivity : AppCompatActivity() {
         settings.allowContentAccess = true
         settings.builtInZoomControls = false
         settings.displayZoomControls = false
-        settings.supportZoom = false
+        settings.setSupportZoom(false)
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
 
         webView.webViewClient = WebViewClient()

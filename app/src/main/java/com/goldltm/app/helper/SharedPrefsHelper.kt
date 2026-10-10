@@ -93,7 +93,7 @@ class SharedPrefsHelper(context: Context) {
     }
 
     // Object operations (using Gson serialization)
-    fun saveObject<T>(key: String, obj: T) {
+    fun <T> saveObject(key: String, obj: T) {
         val json = gson.toJson(obj)
         prefs.edit().putString(key, json).apply()
     }

@@ -4,6 +4,8 @@ import android.content.Context
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import okhttp3.*
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.logging.HttpLoggingInterceptor
 import org.json.JSONArray
 import org.json.JSONObject
@@ -111,7 +113,7 @@ class JsonBinHelper(private val context: Context) {
 
         val request = Request.Builder()
             .url(url)
-            .put(jsonData)
+            .put(jsonData.toRequestBody("application/json; charset=utf-8".toMediaType()))
             .addHeader("Accept", "application/json")
             .addHeader("Content-Type", "application/json")
             .addHeader("X-Master-Key", masterKey)
@@ -158,7 +160,7 @@ class JsonBinHelper(private val context: Context) {
 
         val request = Request.Builder()
             .url(url)
-            .post(jsonData)
+            .post(jsonData.toRequestBody("application/json; charset=utf-8".toMediaType()))
             .addHeader("Accept", "application/json")
             .addHeader("Content-Type", "application/json")
             .addHeader("X-Master-Key", masterKey)
@@ -279,7 +281,7 @@ class JsonBinHelper(private val context: Context) {
                 put("push", true)
             })
             put("transactions", JSONArray().apply {
-                add(JSONObject().apply {
+                put(JSONObject().apply {
                     put("id", "TXN_${System.currentTimeMillis()}")
                     put("type", "credit")
                     put("amount", 5000000.00)

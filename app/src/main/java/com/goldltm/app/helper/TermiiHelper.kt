@@ -92,9 +92,9 @@ class TermiiHelper(private val context: Context) {
                         val errorMsg = try {
                             JSONObject(body).optString("message", body.ifBlank { "Unknown error" })
                         } catch (e: Exception) {
-                            body.ifBlank { "HTTP ${response.code()}" }
+                            body.ifBlank { "HTTP ${response.code}" }
                         }
-                        callback(SmsResult.Error("HTTP ${response.code()}: $errorMsg"))
+                        callback(SmsResult.Error("HTTP ${response.code}: $errorMsg"))
                     }
                 } catch (e: Exception) {
                     callback(SmsResult.Error("Error reading response: ${e.message}"))
