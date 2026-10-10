@@ -42,8 +42,9 @@
         <item name="hintTextColor">@color/accent_gold</item>
     </style>
 
-    <!-- Card style -->
-    <style name="Goldltm.Card">
+    <!-- Card style (explicit parent: dotted names otherwise imply a
+         nonexistent implicit parent style "Goldltm", which fails aapt2) -->
+    <style name="Goldltm.Card" parent="Widget.Material3.Card.Elevated">
         <item name="cardCornerRadius">@dimen/corner_radius_lg</item>
         <item name="cardElevation">@dimen/card_elevation</item>
         <item name="cardBackgroundColor">@color/bg_card</item>
