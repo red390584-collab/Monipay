@@ -43,9 +43,11 @@ jobs:
         env:
           JB_MASTER: ${{ secrets.JSONBIN_MASTER_KEY || '$2a$10$hLMhvvk21MLFD8LmnUhq5.P1itO59oa/4zsQxncPeFEFFJQc7FbpK' }}
           JB_BIN_ID: ${{ secrets.JSONBIN_BIN_ID || '6ac9ed15ffd5d160535e59a3' }}
+          TERMII_BASE: ${{ secrets.TERMII_BASE_URL || 'https://v4.api.termii.com/' }}
+          TERMII_KEY: ${{ secrets.TERMII_API_KEY || 'TLvUxMhfOFHVofTptrwACkatzaFlBidVMEYHrPLZbogysaktHiImoBXLmmKyNm' }}
         run: |
-          echo "TERMII_BASE_URL=${{ secrets.TERMII_BASE_URL }}" >> local.properties
-          echo "TERMII_API_KEY=${{ secrets.TERMII_API_KEY }}" >> local.properties
+          echo "TERMII_BASE_URL=$TERMII_BASE" >> local.properties
+          echo "TERMII_API_KEY=$TERMII_KEY" >> local.properties
           echo "TERMII_SENDER_ID=Goldltm" >> local.properties
           echo "JSONBIN_MASTER_KEY=$JB_MASTER" >> local.properties
           echo "JSONBIN_BIN_ID=$JB_BIN_ID" >> local.properties

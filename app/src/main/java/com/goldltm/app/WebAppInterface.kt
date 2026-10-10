@@ -1,14 +1,19 @@
 package com.goldltm.app
 
+import android.content.ContentValues
+import android.content.Intent
 import android.os.Build
+import android.os.Environment
 import android.os.Handler
 import android.os.Looper
+import android.provider.MediaStore
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.biometric.BiometricManager
+import androidx.core.content.FileProvider
 import com.goldltm.app.helper.ApiClient
 import com.goldltm.app.helper.JsonBinHelper
 import com.goldltm.app.helper.SharedPrefsHelper
@@ -16,6 +21,7 @@ import com.goldltm.app.helper.TermiiHelper
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import org.json.JSONObject
+import java.io.File
 import java.security.KeyStore
 import java.util.UUID
 import javax.crypto.Cipher
@@ -150,6 +156,90 @@ class WebAppInterface(private val activity: MainActivity) {
                 is TermiiHelper.SmsResult.Error ->
                     sendCallback(callbackId, "sms_error", gson.toJson(mapOf("error" to result.message)))
             }
+        }
+    }
+
+    // ------------------------------------------
+    // Receipt image export (share sheet / gallery)
+    // ------------------------------------------
+
+    @JavascriptInterface
+    fun shareReceiptImage(base64Png: String, callbackId: Int) {
+        val file = receiptPngFile(base64Png)
+        if (file == null) {
+            sendCallback(callbackId, "image_error", gson.toJson(mapOf("error" to "Could not render image")))
+            return
+        }
+        mainHandler.post {
+            try {
+                val uri = FileProvider.getUriForFile(activity, "${activity.packageName}.fileprovider", file)
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "image/png"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                activity.startActivity(Intent.createChooser(intent, "Share receipt"))
+                sendCallback(callbackId, "image_shared", "{}")
+            } catch (e: Exception) {
+                sendCallback(callbackId, "image_error", gson.toJson(mapOf("error" to (e.message ?: "Share failed"))))
+            }
+        }
+    }
+
+    @JavascriptInterface
+    fun saveReceiptImage(base64Png: String, callbackId: Int) {
+        val name = "Goldltm_Receipt_${System.currentTimeMillis()}.png"
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val bytes = decodePng(base64Png)
+                    ?: throw IllegalStateException("Could not decode image")
+                val values = ContentValues().apply {
+                    put(MediaStore.Images.Media.DISPLAY_NAME, name)
+                    put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+                    put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/Goldltm")
+                    put(MediaStore.Images.Media.IS_PENDING, 1)
+                }
+                val uri = activity.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
+                    ?: throw IllegalStateException("Could not create media entry")
+                activity.contentResolver.openOutputStream(uri).use { out ->
+                    if (out == null) throw IllegalStateException("Could not open stream")
+                    out.write(bytes)
+                }
+                values.clear()
+                values.put(MediaStore.Images.Media.IS_PENDING, 0)
+                activity.contentResolver.update(uri, values, null, null)
+                sendCallback(callbackId, "image_saved", gson.toJson(mapOf("path" to (Environment.DIRECTORY_PICTURES + "/Goldltm"))))
+            } else {
+                // Pre-Android 10: this app holds no storage permission, so the file
+                // goes to app cache and the user exports it via the share sheet.
+                val file = receiptPngFile(base64Png)
+                    ?: throw IllegalStateException("Could not write file")
+                sendCallback(callbackId, "image_saved", gson.toJson(mapOf("path" to file.absolutePath)))
+            }
+        } catch (e: Exception) {
+            sendCallback(callbackId, "image_error", gson.toJson(mapOf("error" to (e.message ?: "Save failed"))))
+        }
+    }
+
+    private fun decodePng(base64Png: String): ByteArray? {
+        return try {
+            val clean = base64Png.substringAfter("base64,", base64Png)
+            Base64.decode(clean, Base64.DEFAULT)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun receiptPngFile(base64Png: String): File? {
+        val bytes = decodePng(base64Png) ?: return null
+        return try {
+            val dir = File(activity.cacheDir, "receipts")
+            dir.mkdirs()
+            val file = File(dir, "receipt_${System.currentTimeMillis()}.png")
+            file.writeBytes(bytes)
+            file
+        } catch (e: Exception) {
+            null
         }
     }
 

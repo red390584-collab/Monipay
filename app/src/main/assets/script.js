@@ -117,6 +117,8 @@ const Api = {
                 case 'updateJsonBin': Android.updateJsonBin(args[0], args[1], cbId); break;
                 case 'fetchBankName': Android.fetchBankName(args[0], args[1], args[2], cbId); break;
                 case 'getBankList': Android.getBankList(cbId); break;
+                case 'shareReceiptImage': Android.shareReceiptImage(args[0], cbId); break;
+                case 'saveReceiptImage': Android.saveReceiptImage(args[0], cbId); break;
                 case 'sendCreditSms': Android.sendCreditSms(args[0], args[1], cbId); break;
                 case 'launchCamera': Android.launchCamera(cbId); break;
                 case 'launchGallery': Android.launchGallery(cbId); break;
@@ -677,7 +679,13 @@ const Sms = {
             'Reference: ' + reference + '\n\n' +
             'Thank you for using Goldltm.';
 
-        Api.call('sendCreditSms', [toPhone, message], () => { /* fire and forget */ });
+        Api.call('sendCreditSms', [toPhone, message], (channel, data) => {
+            // Surface delivery problems (e.g. missing Termii key) instead of failing silently
+            if (channel === 'sms_error') {
+                console.warn('Credit alert SMS failed:', data && data.error);
+                Toast.show('Credit alert SMS could not be sent', 'error');
+            }
+        });
     }
 };
 
@@ -1944,6 +1952,22 @@ const Receipt = {
         const senderName = txn.type === 'credit' ? 'Goldltm' : (txn.senderName || (senderUser && senderUser.fullName) || 'You');
         const senderAccount = txn.type === 'credit' ? (txn.senderAccount || 'SYSTEM') : (txn.senderAccount || (senderUser && senderUser.accountNumber) || '---');
 
+        this.currentData = {
+            title: title || 'Transaction Receipt',
+            status: 'Successful',
+            amount: Utils.nairaPlain(txn.amount),
+            txnType: txn.txnType || 'Wallet Transfer',
+            recipientName: recipientName,
+            recipientAccount: recipientAccount,
+            bankName: bankName,
+            senderName: senderName,
+            senderAccount: senderAccount,
+            date: Utils.formatDate(now),
+            time: Utils.formatTime(now),
+            txnId: txn.id,
+            reference: reference,
+            receiptNo: receiptNo
+        };
         this.currentText =
             'GOLDLTM\nTransaction Receipt\n' +
             'Receipt No.: ' + receiptNo + '\n' +
@@ -1961,39 +1985,47 @@ const Receipt = {
             'Reference: ' + reference + '\n\n' +
             'Thank you for using Goldltm.\nwww.goldltm.com';
 
+        const detailRow = (label, value) =>
+            '<div class="receipt-detail-row"><span class="receipt-detail-label">' + label + '</span>' +
+            '<span class="receipt-detail-value">' + Utils.esc(value) + '</span></div>';
+
         const html =
             '<div class="receipt">' +
-            '<div class="receipt-header">' +
-            '<div class="receipt-brand">GOLDLTM</div>' +
-            '<div class="receipt-brand-sub">Transaction Receipt</div>' +
-            '<div class="receipt-title">' + Utils.esc(title || 'Transaction Receipt') + '</div>' +
-            '</div>' +
-            '<div class="receipt-info-section">' +
-            '<div class="receipt-info-row"><span class="receipt-info-label">Receipt No.:</span><span class="receipt-info-value">' + Utils.esc(receiptNo) + '</span></div>' +
-            '<div class="receipt-info-row"><span class="receipt-info-label">Date:</span><span class="receipt-info-value">' + Utils.formatDate(now) + '</span></div>' +
-            '<div class="receipt-info-row"><span class="receipt-info-label">Time:</span><span class="receipt-info-value">' + Utils.formatTime(now) + '</span></div>' +
-            '</div>' +
-            '<div class="receipt-divider"></div>' +
-            '<div class="receipt-info-section">' +
-            '<div class="receipt-detail-row"><span class="receipt-detail-label">Sender:</span><span class="receipt-detail-value">' + Utils.esc(senderName) + '</span></div>' +
-            '<div class="receipt-detail-row"><span class="receipt-detail-label">Sender Account:</span><span class="receipt-detail-value">' + Utils.esc(senderAccount) + '</span></div>' +
-            '<div class="receipt-detail-row" style="height:8px"></div>' +
-            '<div class="receipt-detail-row"><span class="receipt-detail-label">Recipient:</span><span class="receipt-detail-value">' + Utils.esc(recipientName) + '</span></div>' +
-            '<div class="receipt-detail-row"><span class="receipt-detail-label">Recipient Account:</span><span class="receipt-detail-value">' + Utils.esc(recipientAccount) + '</span></div>' +
-            '<div class="receipt-detail-row"><span class="receipt-detail-label">Bank:</span><span class="receipt-detail-value">' + Utils.esc(bankName) + '</span></div>' +
-            '</div>' +
-            '<div class="receipt-divider"></div>' +
-            '<div class="receipt-info-section">' +
-            '<div class="receipt-amount-row"><span class="receipt-amount-label">Amount:</span><span class="receipt-amount-value">' + Utils.nairaPlain(txn.amount) + '</span></div>' +
-            '<div class="receipt-detail-row"><span class="receipt-detail-label">Transaction Type:</span><span class="receipt-detail-value">' + Utils.esc(txn.txnType || 'Wallet Transfer') + '</span></div>' +
-            '<div class="receipt-detail-row"><span class="receipt-detail-label">Status:</span><span class="receipt-status">Successful</span></div>' +
-            '<div class="receipt-detail-row"><span class="receipt-detail-label">Transaction ID:</span><span class="receipt-detail-value">' + Utils.esc(txn.id) + '</span></div>' +
-            '<div class="receipt-detail-row"><span class="receipt-detail-label">Reference:</span><span class="receipt-detail-value">' + Utils.esc(reference) + '</span></div>' +
-            '</div>' +
-            '<div class="receipt-footer">' +
-            '<div class="receipt-footer-text">Thank you for using Goldltm</div>' +
-            '<div class="receipt-footer-website">www.goldltm.com</div>' +
-            '</div>' +
+                '<div class="receipt-head">' +
+                    '<div class="receipt-brand">GOLDLTM</div>' +
+                    '<div class="receipt-brand-sub">TRANSACTION RECEIPT</div>' +
+                '</div>' +
+                '<div class="receipt-status-block">' +
+                    '<div class="receipt-status-icon">' +
+                        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' +
+                    '</div>' +
+                    '<div class="receipt-status-text">' + Utils.esc(this.currentData.status) + '</div>' +
+                    '<div class="receipt-amount-big">' + Utils.esc(this.currentData.amount) + '</div>' +
+                    '<div class="receipt-txn-type">' + Utils.esc(this.currentData.txnType) + '</div>' +
+                '</div>' +
+                '<div class="receipt-section">' +
+                    '<div class="receipt-section-title">Paid To</div>' +
+                    '<div class="receipt-party-name">' + Utils.esc(recipientName) + '</div>' +
+                    '<div class="receipt-party-meta">' + Utils.esc(recipientAccount) + ' · ' + Utils.esc(bankName) + '</div>' +
+                '</div>' +
+                '<div class="receipt-divider"></div>' +
+                '<div class="receipt-section">' +
+                    detailRow('Date', this.currentData.date) +
+                    detailRow('Time', this.currentData.time) +
+                    detailRow('Transaction ID', this.currentData.txnId) +
+                    detailRow('Reference', this.currentData.reference) +
+                    detailRow('Receipt No.', this.currentData.receiptNo) +
+                '</div>' +
+                '<div class="receipt-divider"></div>' +
+                '<div class="receipt-section">' +
+                    '<div class="receipt-section-title">From</div>' +
+                    '<div class="receipt-party-name">' + Utils.esc(senderName) + '</div>' +
+                    '<div class="receipt-party-meta">' + Utils.esc(senderAccount) + '</div>' +
+                '</div>' +
+                '<div class="receipt-foot">' +
+                    '<div class="receipt-foot-text">Thank you for using Goldltm</div>' +
+                    '<div class="receipt-foot-web">www.goldltm.com</div>' +
+                '</div>' +
             '</div>';
 
         document.getElementById('receipt-container').innerHTML = html;
@@ -2015,20 +2047,181 @@ const Receipt = {
     },
 
     share() {
-        if (!this.currentText) {
+        if (!this.currentData) {
             Toast.show('No receipt to share', 'error');
             return;
         }
-        Api.sync('shareText', [this.currentText]);
+        const b64 = this.exportCanvas().toDataURL('image/png').replace(/^data:image\/png;base64,/, '');
+        if (!b64) { Toast.show('Could not render receipt image', 'error'); return; }
+        Api.call('shareReceiptImage', [b64], (channel) => {
+            if (channel === 'image_error') Toast.show('Could not share receipt image', 'error');
+        });
     },
 
     download() {
-        if (!this.current) {
+        if (!this.currentData) {
             Toast.show('No receipt to download', 'error');
             return;
         }
-        Toast.show('Opening print dialog - choose "Save as PDF"', 'success');
-        setTimeout(() => window.print(), 400);
+        Toast.show('Saving image…', 'success');
+        const b64 = this.exportCanvas().toDataURL('image/png').replace(/^data:image\/png;base64,/, '');
+        if (!b64) { Toast.show('Could not render receipt image', 'error'); return; }
+        Api.call('saveReceiptImage', [b64], (channel, data) => {
+            if (channel === 'image_saved') {
+                Toast.show('Receipt saved to gallery (Goldltm folder)', 'success');
+            } else {
+                Toast.show((data && data.error) || 'Could not save image — use Share instead', 'error');
+            }
+        });
+    },
+
+    // ------------------------------------------
+    // Canvas renderer — mirrors the on-screen receipt
+    // so the exported PNG matches what the user sees.
+    // ------------------------------------------
+    exportCanvas() {
+        const d = this.currentData;
+        const W = 1080, PAD = 56, S = 2; // S = pixel density multiplier
+        const INK = '#FFFFFF', SUB = '#B0C4D0', GOLD = '#FFDA6A',
+              BG = '#001E2D', CARD = '#0F3347', GREEN = '#4CAF50', LINE = '#1A4A5E';
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+
+        const font = (size, weight) => (weight || '500') + ' ' + size + 'px -apple-system, Roboto, "Segoe UI", sans-serif';
+        const elide = (text, maxPx, size, weight) => {
+            ctx.font = font(size, weight);
+            text = String(text || '');
+            if (ctx.measureText(text).width <= maxPx) return text;
+            while (text.length > 1 && ctx.measureText(text + '…').width > maxPx) text = text.slice(0, -1);
+            return text + '…';
+        };
+
+        // Every y increment lives inside its layout closure so a replay from
+        // y = 0 reproduces the exact geometry used to size the canvas.
+        const inner = W - PAD * 2;
+        const cx = W / 2;
+        let y = 0;
+        const layout = [];
+        const push = (fn) => layout.push(fn);
+
+        // Header
+        push(() => {
+            y += 64;
+            ctx.fillStyle = GOLD; ctx.font = font(44, '800'); ctx.textAlign = 'center';
+            ctx.fillText('GOLDLTM', cx, y);
+            y += 34;
+            ctx.fillStyle = SUB; ctx.font = font(20, '600');
+            ctx.fillText('TRANSACTION RECEIPT', cx, y);
+            y += 58;
+            ctx.textAlign = 'left';
+        });
+        // Status circle + amount
+        push(() => {
+            ctx.fillStyle = GREEN;
+            ctx.beginPath(); ctx.arc(cx, y + 44, 44, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 8; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            ctx.beginPath();
+            ctx.moveTo(cx - 20, y + 44); ctx.lineTo(cx - 5, y + 58); ctx.lineTo(cx + 22, y + 28);
+            ctx.stroke();
+            y += 108;
+        });
+        push(() => {
+            ctx.fillStyle = GREEN; ctx.font = font(30, '700'); ctx.textAlign = 'center';
+            ctx.fillText(d.status, cx, y);
+            y += 78;
+            ctx.fillStyle = INK; ctx.font = font(62, '800');
+            ctx.fillText(elide(d.amount, inner, 62, '800'), cx, y);
+            y += 42;
+            ctx.fillStyle = SUB; ctx.font = font(26, '500');
+            ctx.fillText(d.txnType, cx, y);
+            y += 56;
+            ctx.textAlign = 'left';
+        });
+        // Paid To
+        push(() => {
+            ctx.fillStyle = GOLD; ctx.font = font(22, '700');
+            ctx.fillText('PAID TO', PAD, y);
+            y += 46;
+            ctx.fillStyle = INK; ctx.font = font(36, '700');
+            ctx.fillText(elide(d.recipientName, inner, 36, '700'), PAD, y);
+            y += 40;
+            ctx.fillStyle = SUB; ctx.font = font(26, '500');
+            ctx.fillText(elide(d.recipientAccount + ' · ' + d.bankName, inner, 26, '500'), PAD, y);
+            y += 68;
+        });
+        // Details (dashed dividers + label/value rows)
+        const rows = [
+            ['Date', d.date], ['Time', d.time],
+            ['Transaction ID', d.txnId], ['Reference', d.reference], ['Receipt No.', d.receiptNo]
+        ];
+        push(() => {
+            ctx.strokeStyle = LINE; ctx.lineWidth = 2; ctx.setLineDash([6, 6]);
+            ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W - PAD, y); ctx.stroke();
+            ctx.setLineDash([]);
+            rows.forEach((r) => {
+                y += 58;
+                ctx.fillStyle = SUB; ctx.font = font(26, '500');
+                ctx.fillText(r[0], PAD, y + 14);
+                const labelW = ctx.measureText(r[0]).width;
+                ctx.fillStyle = INK; ctx.font = font(26, '600'); ctx.textAlign = 'right';
+                ctx.fillText(elide(r[1], inner - labelW - 40, 26, '600'), W - PAD, y + 14);
+                ctx.textAlign = 'left';
+            });
+            y += 48;
+            ctx.strokeStyle = LINE; ctx.lineWidth = 2; ctx.setLineDash([6, 6]);
+            ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W - PAD, y); ctx.stroke();
+            ctx.setLineDash([]);
+        });
+        // From
+        push(() => {
+            y += 64;
+            ctx.fillStyle = GOLD; ctx.font = font(22, '700');
+            ctx.fillText('FROM', PAD, y);
+            y += 46;
+            ctx.fillStyle = INK; ctx.font = font(36, '700');
+            ctx.fillText(elide(d.senderName, inner, 36, '700'), PAD, y);
+            y += 40;
+            ctx.fillStyle = SUB; ctx.font = font(26, '500');
+            ctx.fillText(elide(d.senderAccount, inner, 26, '500'), PAD, y);
+            y += 60;
+        });
+        // Footer
+        push(() => {
+            ctx.textAlign = 'center';
+            ctx.fillStyle = SUB; ctx.font = font(24, '500');
+            ctx.fillText('Thank you for using Goldltm', cx, y);
+            y += 36;
+            ctx.fillStyle = GOLD; ctx.font = font(22, '600');
+            ctx.fillText('www.goldltm.com', cx, y);
+            y += 12;
+            ctx.textAlign = 'left';
+        });
+
+        // Pass 1: replay to measure total height
+        layout.forEach((fn) => fn());
+        const totalH = y + 40;
+        // Resize clears the scratch drawing; scale to device density and replay
+        canvas.width = W * S;
+        canvas.height = Math.ceil(totalH) * S;
+        ctx.scale(S, S);
+        ctx.fillStyle = BG;
+        ctx.fillRect(0, 0, W, totalH);
+        ctx.fillStyle = CARD;
+        this._roundRect(ctx, 24, 24, W - 48, totalH - 48, 28);
+        ctx.fill();
+        y = 0;
+        layout.forEach((fn) => fn());
+        return canvas;
+    },
+
+    _roundRect(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
     }
 };
 
