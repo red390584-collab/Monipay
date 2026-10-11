@@ -1,0 +1,16 @@
+/* ============================================
+   Card Brand Logos - Color Tokens
+   Used by the Goldltm Cards screen
+   ============================================ */
+
+:root {
+    /* Brand identity colors */
+    --brand-visa: #1A1F71;
+    --brand-mastercard: #EB001B;
+    --brand-verve: #EB001B;
+
+    /* Brand logo hover/glow treatment */
+    --brand-glow: rgba(255, 218, 106, 0.25);
+    --brand-ring: rgba(255, 218, 106, 0.45);
+    --brand-dot: #FFDA6A;
+}

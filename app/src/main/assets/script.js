@@ -1076,6 +1076,44 @@ const Transactions = {
 // ============================================
 
 const Cards = {
+    brandKey(card) {
+        const raw = ((card && card.brand) || '').toLowerCase();
+        if (raw.includes('visa')) return 'visa';
+        if (raw.includes('master')) return 'mastercard';
+        return 'verve';
+    },
+
+    brandName(key) {
+        return key === 'visa' ? 'Visa' : key === 'mastercard' ? 'Mastercard' : 'Verve';
+    },
+
+    // Realistic card face — used in the list and in the details sheet.
+    visualHtml(card, i, opts) {
+        opts = opts || {};
+        const key = this.brandKey(card);
+        const name = this.brandName(key);
+        const blocked = !!card.blocked;
+        const last4 = String(card.last4 || '0000');
+        const holder = String(card.holder || Session.username || 'GOLDLTM MEMBER').toUpperCase();
+        const alias = String(card.alias || '').trim();
+        const click = opts.static ? '' : ' onclick="Cards.openDetail(' + i + ')"';
+        return '<div class="card-visual ' + key + (blocked ? ' is-blocked' : '') + '"' + click + '>' +
+            '<div class="card-visual-shine"></div>' +
+            '<div class="card-visual-head">' +
+                '<div class="card-visual-chip"><span></span></div>' +
+                '<svg class="card-visual-wave" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12a7 7 0 017-7"/><path d="M8.5 12a3.5 3.5 0 013.5-3.5"/><path d="M12 12a0 0 0 010 0"/></svg>' +
+                '<img class="card-visual-logo" src="logos/' + key + '.svg" alt="' + name + '" onerror="this.style.display=\'none\'">' +
+            '</div>' +
+            (alias ? '<div class="card-visual-alias">' + Utils.esc(alias) + '</div>' : '') +
+            '<div class="card-visual-number"><span>••••</span> <span>••••</span> <span>••••</span> <span>' + Utils.esc(last4) + '</span></div>' +
+            '<div class="card-visual-foot">' +
+                '<div class="cv-field"><span class="cv-label">Card Holder</span><span class="cv-value">' + Utils.esc(holder) + '</span></div>' +
+                '<div class="cv-field"><span class="cv-label">Expires</span><span class="cv-value">' + Utils.esc(card.expiry || '--/--') + '</span></div>' +
+                '<span class="card-visual-badge ' + (blocked ? 'blocked' : 'active') + '">' + (blocked ? 'Blocked' : 'Active') + '</span>' +
+            '</div>' +
+        '</div>';
+    },
+
     load() {
         Store.load().then(() => {
             const user = Store.currentUser();
@@ -1087,21 +1125,7 @@ const Cards = {
                     '<div class="empty-state-desc">Add a card to get started (demo cards are simulated)</div></div>';
                 return;
             }
-            container.innerHTML = cards.map((card, i) => {
-                const masked = '**** **** **** ' + String(card.last4 || '0000');
-                const blocked = !!card.blocked;
-                return '<div class="card-item">' +
-                    '<div class="card-left">' +
-                    '<div class="card-chip">GOLD</div>' +
-                    '<div class="card-info">' +
-                    '<div class="card-number">' + masked + '</div>' +
-                    '<div class="card-expiry">' + Utils.esc(card.expiry || '') + ' · ' + Utils.esc(card.brand || 'Verve') + '</div>' +
-                    '</div></div>' +
-                    '<div class="card-right">' +
-                    '<div class="card-status ' + (blocked ? 'blocked' : 'active') + '">' + (blocked ? 'Blocked' : 'Active') + '</div><br>' +
-                    '<button class="btn-text" style="font-size:12px" onclick="Cards.toggleBlock(' + i + ')">' + (blocked ? 'Unblock' : 'Block') + '</button>' +
-                    '</div></div>';
-            }).join('');
+            container.innerHTML = cards.map((card, i) => this.visualHtml(card, i)).join('');
         }).catch(() => Toast.show('Failed to load cards', 'error'));
     },
 
@@ -1120,10 +1144,16 @@ const Cards = {
             const user = Store.currentUser();
             if (!user) return;
             if (!user.cards) user.cards = [];
+            // Brand from the IIN: 4… → Visa, 5…/2… → Mastercard, everything else → Verve
+            const brand = number[0] === '4' ? 'Visa'
+                : (number[0] === '5' || number[0] === '2') ? 'Mastercard'
+                : 'Verve';
             user.cards.push({
                 last4: number.slice(-4),
                 expiry: expiry,
-                brand: 'Verve',
+                brand: brand,
+                alias: '',
+                holder: Session.username || '',
                 blocked: false,
                 addedAt: new Date().toISOString()
             });
@@ -1144,6 +1174,94 @@ const Cards = {
                 this.load();
             });
         }).catch(() => Toast.show('Failed to update card', 'error'));
+    },
+
+    // ---- Card details / settings sheet ----
+    openDetail(i) {
+        Store.load().then(() => {
+            const user = Store.currentUser();
+            const card = user && user.cards && user.cards[i];
+            if (!card) return;
+            this._detail = i;
+            this._detailCard = card;
+            document.getElementById('card-detail-alias').value = card.alias || '';
+            document.getElementById('card-detail-expiry').value = card.expiry || '';
+            this._refreshDetail();
+            document.getElementById('card-detail-overlay').classList.add('active');
+        }).catch(() => Toast.show('Could not open card details', 'error'));
+    },
+
+    _refreshDetail() {
+        const card = this._detailCard;
+        if (!card) return;
+        const blocked = !!card.blocked;
+        document.getElementById('card-detail-visual').innerHTML = this.visualHtml(card, this._detail, { static: true });
+        document.getElementById('card-detail-status').innerHTML =
+            '<span class="card-visual-badge ' + (blocked ? 'blocked' : 'active') + '">' + (blocked ? 'Blocked' : 'Active') + '</span>' +
+            '<span class="card-detail-status-hint">' + (blocked ? 'This card cannot be used for payments' : 'This card is ready to use') + '</span>';
+        document.getElementById('card-detail-block-btn').textContent = blocked ? 'Unblock Card' : 'Block Card';
+    },
+
+    closeDetail(e) {
+        if (e && e.target !== e.currentTarget) return;
+        const overlay = document.getElementById('card-detail-overlay');
+        if (overlay) overlay.classList.remove('active');
+        this._detail = null;
+        this._detailCard = null;
+    },
+
+    saveDetail() {
+        const i = this._detail;
+        if (i === null || i === undefined) return;
+        const alias = (document.getElementById('card-detail-alias').value || '').trim().slice(0, 24);
+        const expiry = (document.getElementById('card-detail-expiry').value || '').trim();
+        if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(expiry)) {
+            Toast.show('Expiry must be in MM/YY format', 'error');
+            return;
+        }
+        Store.load().then(() => {
+            const user = Store.currentUser();
+            if (!user || !user.cards || !user.cards[i]) return;
+            user.cards[i].alias = alias;
+            user.cards[i].expiry = expiry;
+            return Store.save().then(() => {
+                this.closeDetail();
+                this.load();
+                Toast.show('Card details updated', 'success');
+            });
+        }).catch(() => Toast.show('Failed to save card details', 'error'));
+    },
+
+    detailToggleBlock() {
+        const i = this._detail;
+        if (i === null || i === undefined) return;
+        Store.load().then(() => {
+            const user = Store.currentUser();
+            if (!user || !user.cards || !user.cards[i]) return;
+            user.cards[i].blocked = !user.cards[i].blocked;
+            this._detailCard = user.cards[i];
+            return Store.save().then(() => {
+                this._refreshDetail();
+                this.load();
+                Toast.show(user.cards[i].blocked ? 'Card blocked' : 'Card unblocked', 'success');
+            });
+        }).catch(() => Toast.show('Failed to update card', 'error'));
+    },
+
+    deleteCard() {
+        const i = this._detail;
+        if (i === null || i === undefined) return;
+        if (!window.confirm('Delete this card permanently?')) return;
+        Store.load().then(() => {
+            const user = Store.currentUser();
+            if (!user || !user.cards || !user.cards[i]) return;
+            user.cards.splice(i, 1);
+            return Store.save().then(() => {
+                this.closeDetail();
+                this.load();
+                Toast.show('Card deleted', 'success');
+            });
+        }).catch(() => Toast.show('Failed to delete card', 'error'));
     }
 };
 
@@ -1175,22 +1293,87 @@ const Profile = {
         }
     },
 
-    editAvatar() {
+    // ---- Profile editing (name, email, photo) ----
+    _photo: null,
+
+    openEdit(focus) {
+        this._photo = null;
+        const img = document.getElementById('profile-edit-avatar-img');
+        const txt = document.getElementById('profile-edit-avatar-text');
+        if (Session.avatarUrl) {
+            img.src = Session.avatarUrl;
+            img.style.display = 'block';
+            txt.style.display = 'none';
+        } else {
+            img.style.display = 'none';
+            txt.style.display = 'block';
+            txt.textContent = Utils.initial(Session.username);
+        }
+        document.getElementById('profile-edit-name').value = Session.username || '';
+        document.getElementById('profile-edit-email').value = Session.email || '';
+        document.getElementById('profile-edit-overlay').classList.add('active');
+        if (focus === 'name') {
+            setTimeout(() => document.getElementById('profile-edit-name').focus(), 200);
+        }
+    },
+
+    closeEdit(e) {
+        if (e && e.target !== e.currentTarget) return;
+        const overlay = document.getElementById('profile-edit-overlay');
+        if (overlay) overlay.classList.remove('active');
+        this._photo = null;
+    },
+
+    pickPhoto() {
         const onImage = (channel, data) => {
             if (channel === 'image_result' && data && data.base64) {
-                Session.set('avatar_url', 'data:image/jpeg;base64,' + data.base64);
-                this.load();
-                Toast.show('Avatar updated', 'success');
+                this._photo = 'data:image/jpeg;base64,' + data.base64;
+                const img = document.getElementById('profile-edit-avatar-img');
+                img.src = this._photo;
+                img.style.display = 'block';
+                document.getElementById('profile-edit-avatar-text').style.display = 'none';
+                Toast.show('Photo ready — tap Save Profile', 'success');
             }
         };
-        const choice = window.prompt('Choose: type "camera" or "gallery"');
+        const choice = window.prompt('Choose photo source: type "camera" or "gallery"');
         if (choice === 'camera') {
             Api.call('launchCamera', [], onImage);
         } else if (choice === 'gallery') {
             Api.call('launchGallery', [], onImage);
-        } else {
+        } else if (choice !== null) {
             Toast.show('Enter "camera" or "gallery"', 'error');
         }
+    },
+
+    saveEdit() {
+        const name = (document.getElementById('profile-edit-name').value || '').trim().replace(/\s+/g, ' ');
+        const email = (document.getElementById('profile-edit-email').value || '').trim();
+        if (name.length < 2 || !/[A-Za-z]/.test(name)) {
+            Toast.show('Please enter a valid full name', 'error');
+            return;
+        }
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            Toast.show('Please enter a valid email address', 'error');
+            return;
+        }
+        Session.set('username', name);
+        if (email) Session.set('user_email', email);
+        if (this._photo) Session.set('avatar_url', this._photo);
+        const photo = this._photo;
+        this._photo = null;
+        Store.load().then(() => {
+            const user = Store.currentUser();
+            if (user) {
+                user.fullName = name;
+                if (email) user.email = email;
+                if (photo) user.avatarUrl = photo;
+                return Store.save();
+            }
+        }).catch(() => { /* local session still updated */ }).then(() => {
+            this.load();
+            this.closeEdit();
+            Toast.show('Profile updated', 'success');
+        });
     },
 
     logout() {
@@ -1588,6 +1771,8 @@ const SendMoney = {
         document.getElementById('send-pin').value = '';
         document.getElementById('send-recipient-card').style.display = 'none';
         document.getElementById('send-bank-recipient-card').style.display = 'none';
+        document.getElementById('send-bank-select').value = '';
+        this._renderBankPickerBtn(null);
         this._renderBanks();
         this._loadBankList();
         this._loadBeneficiaries();
@@ -1607,8 +1792,114 @@ const SendMoney = {
 
     _renderBanks() {
         const select = document.getElementById('send-bank-select');
+        const current = select.value;
         select.innerHTML = '<option value="">Choose a bank</option>' +
             this.banks.map(b => '<option value="' + b.code + '">' + Utils.esc(b.name) + '</option>').join('');
+        if (current) select.value = current;
+        this._renderBankPickerBtn(this.banks.find(b => b.code === select.value) || null);
+    },
+
+    // Bundled logo file per bank code (app/src/main/assets/banks/).
+    logoFiles: {
+        '044': 'access.png', '057': 'zenith.svg', '058': 'gtbank.svg', '011': 'firstbank.svg',
+        '033': 'uba.jpg', '032': 'union.png', '232': 'sterling.png', '035': 'wema.svg',
+        '070': 'fidelity.png', '214': 'fcmb.png', '221': 'stanbic.png', '082': 'keystone.png',
+        '076': 'polaris.png', '101': 'providus.png', '301': 'jaiz.png', '215': 'unity.png',
+        '050': 'ecobank.png', '999992': 'opay.png', '999991': 'palmpay.png', '50211': 'kuda.png',
+        '50515': 'moniepoint.svg', '50126': 'eyowo.svg', '100002': 'paga.png'
+    },
+
+    bankLogoHtml(bank, small) {
+        const file = this.logoFiles[bank.code];
+        const cls = 'bank-logo-tile' + (small ? ' sm' : '');
+        if (file) {
+            return '<span class="' + cls + '"><img src="banks/' + file + '" alt="' + Utils.esc(bank.name) +
+                '" onerror="SendMoney.logoFallback(this)"></span>';
+        }
+        return '<span class="' + cls + '">' + this.monoHtml(bank.name) + '</span>';
+    },
+
+    // Initials tile with a deterministic brand-ish colour for banks we have no
+    // bundled logo for (the live Paystack list has 100+ banks).
+    monoHtml(name) {
+        const words = String(name || 'Bank').trim().split(/\s+/);
+        const initials = words.slice(0, 2).map(w => w.charAt(0).toUpperCase()).join('');
+        let h = 0;
+        const s = String(name || 'Bank');
+        for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
+        return '<span class="bank-mono" style="background:hsl(' + h + ',52%,36%)">' + Utils.esc(initials) + '</span>';
+    },
+
+    logoFallback(img) {
+        const tile = img.parentNode;
+        if (tile) tile.innerHTML = this.monoHtml(img.alt || 'Bank');
+    },
+
+    openBankPicker() {
+        this._bankQuery = '';
+        const search = document.getElementById('bank-picker-search');
+        if (search) search.value = '';
+        this._renderBankPicker();
+        document.getElementById('bank-picker-overlay').classList.add('active');
+    },
+
+    closeBankPicker(e) {
+        if (e && e.target !== e.currentTarget) return;
+        document.getElementById('bank-picker-overlay').classList.remove('active');
+    },
+
+    filterBanks(q) {
+        this._bankQuery = (q || '').toLowerCase();
+        this._renderBankPicker();
+    },
+
+    _renderBankPicker() {
+        const q = this._bankQuery || '';
+        const selected = document.getElementById('send-bank-select').value;
+        const list = this.banks.filter(b => !q || b.name.toLowerCase().indexOf(q) !== -1 || String(b.code).indexOf(q) !== -1);
+        const container = document.getElementById('bank-picker-list');
+        if (!list.length) {
+            container.innerHTML = '<div class="bank-picker-empty">No banks match “' + Utils.esc(q) + '”</div>';
+            return;
+        }
+        container.innerHTML = list.map(b => {
+            const isSel = b.code === selected;
+            return '<button type="button" class="bank-row' + (isSel ? ' selected' : '') + '" onclick="SendMoney.pickBank(\'' + b.code + '\')">' +
+                this.bankLogoHtml(b) +
+                '<span class="bank-row-name">' + Utils.esc(b.name) + '</span>' +
+                (b.mobile ? '<span class="bank-row-badge">Mobile</span>' : '') +
+                (isSel ? '<svg class="bank-row-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>' : '') +
+                '</button>';
+        }).join('');
+    },
+
+    pickBank(code) {
+        const bank = this.banks.find(b => b.code === code);
+        if (!bank) return;
+        const select = document.getElementById('send-bank-select');
+        if (!select.querySelector('option[value="' + code + '"]')) {
+            const opt = document.createElement('option');
+            opt.value = code;
+            opt.textContent = bank.name;
+            select.appendChild(opt);
+        }
+        select.value = code;
+        this._renderBankPickerBtn(bank);
+        document.getElementById('bank-picker-overlay').classList.remove('active');
+        this.onBankSelected();
+    },
+
+    _renderBankPickerBtn(bank) {
+        const btn = document.getElementById('send-bank-picker-btn');
+        if (!btn) return;
+        if (!bank) {
+            btn.innerHTML = '<span class="bank-picker-placeholder">Choose a bank</span>' +
+                '<svg class="bank-picker-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>';
+            return;
+        }
+        btn.innerHTML = this.bankLogoHtml(bank) +
+            '<span class="bank-picker-name">' + Utils.esc(bank.name) + '</span>' +
+            '<svg class="bank-picker-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>';
     },
 
     // Merge a live Paystack bank list (source of truth for codes/names) over the
@@ -1673,6 +1964,11 @@ const SendMoney = {
         if (b.type === 'bank') {
             this.tab = 'bank';
             this.setTab('bank');
+            const known = this.banks.find(x => x.name === b.bankName);
+            if (known) {
+                document.getElementById('send-bank-select').value = known.code;
+                this._renderBankPickerBtn(known);
+            }
             document.getElementById('send-bank-account').value = b.accountNumber;
             this.recipient = {
                 name: b.name,
@@ -1833,10 +2129,10 @@ const SendMoney = {
 const Airtime = {
     network: null,
     networks: [
-        { id: 'mtn', name: 'MTN' },
-        { id: 'glo', name: 'Glo' },
-        { id: 'airtel', name: 'Airtel' },
-        { id: '9mobile', name: '9mobile' }
+        { id: 'mtn', name: 'MTN', logo: 'networks/mtn.svg' },
+        { id: 'glo', name: 'Glo', logo: 'networks/glo.png' },
+        { id: 'airtel', name: 'Airtel', logo: 'networks/airtel.svg' },
+        { id: '9mobile', name: '9mobile', logo: 'networks/9mobile.svg' }
     ],
 
     open() {
@@ -1852,7 +2148,7 @@ const Airtime = {
         const container = document.getElementById('airtime-networks');
         container.innerHTML = this.networks.map(n =>
             '<button class="network-btn" data-network="' + n.id + '" onclick="Airtime.select(\'' + n.id + '\')">' +
-            '<div class="network-icon ' + n.id + '">' + n.name.charAt(0) + '</div>' +
+            '<div class="network-icon ' + n.id + '"><span class="network-letter">' + n.name.charAt(0) + '</span><img class="network-logo" src="' + n.logo + '" alt="' + n.name + '" onerror="this.remove()"></div>' +
             '<span class="network-name">' + n.name + '</span></button>'
         ).join('');
     },
@@ -1942,7 +2238,7 @@ const Data = {
         const container = document.getElementById('data-networks');
         container.innerHTML = this.networks.map(n =>
             '<button class="network-btn" data-network="' + n.id + '" onclick="Data.select(\'' + n.id + '\')">' +
-            '<div class="network-icon ' + n.id + '">' + n.name.charAt(0) + '</div>' +
+            '<div class="network-icon ' + n.id + '"><span class="network-letter">' + n.name.charAt(0) + '</span><img class="network-logo" src="' + n.logo + '" alt="' + n.name + '" onerror="this.remove()"></div>' +
             '<span class="network-name">' + n.name + '</span></button>'
         ).join('');
         Navigation.show('data');

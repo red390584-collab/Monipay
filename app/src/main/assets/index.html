@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#001E2D">
     <title>Goldltm</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="logos/brand-logo.css">
 </head>
 <body>
 
@@ -377,11 +378,11 @@
                         <span id="profile-account-number">---</span>
                     </div>
                 </div>
-                <button class="btn-text" onclick="Profile.editAvatar()">Edit</button>
+                <button class="btn-text" onclick="Profile.openEdit()">Edit</button>
             </div>
 
             <div class="profile-info-section">
-                <div class="profile-info-row"><span class="profile-info-label">Full Name</span><span class="profile-info-value" id="profile-fullname">---</span></div>
+                <div class="profile-info-row" onclick="Profile.openEdit('name')" style="cursor:pointer"><span class="profile-info-label">Full Name</span><span class="profile-info-value" id="profile-fullname">---</span></div>
                 <div class="profile-info-row"><span class="profile-info-label">Phone</span><span class="profile-info-value" id="profile-phone">---</span></div>
                 <div class="profile-info-row"><span class="profile-info-label">Email</span><span class="profile-info-value" id="profile-email-value">---</span></div>
                 <div class="profile-info-row"><span class="profile-info-label">BVN</span><span class="profile-info-value" id="profile-bvn">---</span></div>
@@ -658,7 +659,10 @@
                     </div>
                     <div class="send-input-group">
                         <label style="font-size:13px; color:var(--text-secondary); display:block; margin-bottom:8px">Select Bank</label>
-                        <select id="send-bank-select" class="send-bank-select" onchange="SendMoney.onBankSelected()">
+                        <button type="button" id="send-bank-picker-btn" class="bank-picker-btn" onclick="SendMoney.openBankPicker()">
+                            <span class="bank-picker-placeholder">Choose a bank</span>
+                        </button>
+                        <select id="send-bank-select" class="hidden-select" tabindex="-1" aria-hidden="true" onchange="SendMoney.onBankSelected()">
                             <option value="">Choose a bank</option>
                         </select>
                     </div>
@@ -857,6 +861,77 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
                 Done
             </button>
+        </div>
+    </div>
+
+    <!-- ========== BANK PICKER ========== -->
+    <div class="sheet-overlay" id="bank-picker-overlay" onclick="SendMoney.closeBankPicker(event)">
+        <div class="bank-picker-sheet" onclick="event.stopPropagation()">
+            <div class="bank-picker-head">
+                <span class="bank-picker-title">Select Bank</span>
+                <button class="sheet-close" onclick="SendMoney.closeBankPicker()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="bank-picker-search-wrap">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input type="text" id="bank-picker-search" class="bank-picker-search" placeholder="Search banks…" oninput="SendMoney.filterBanks(this.value)">
+            </div>
+            <div id="bank-picker-list" class="bank-picker-list"></div>
+        </div>
+    </div>
+
+    <!-- ========== CARD DETAILS / SETTINGS ========== -->
+    <div class="sheet-overlay" id="card-detail-overlay" onclick="Cards.closeDetail(event)">
+        <div class="card-detail-sheet" onclick="event.stopPropagation()">
+            <div class="bank-picker-head">
+                <span class="bank-picker-title">Card Details</span>
+                <button class="sheet-close" onclick="Cards.closeDetail()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div id="card-detail-visual" class="card-detail-visual"></div>
+            <div class="card-detail-fields">
+                <label class="field-label">Card label</label>
+                <input type="text" id="card-detail-alias" class="sheet-input" maxlength="24" placeholder="e.g. Shopping card">
+                <label class="field-label">Expiry (MM/YY)</label>
+                <input type="text" id="card-detail-expiry" class="sheet-input" maxlength="5" placeholder="09/28" inputmode="numeric">
+                <label class="field-label">Status</label>
+                <div id="card-detail-status" class="card-detail-status-row"></div>
+            </div>
+            <div class="card-detail-actions">
+                <button class="btn-primary" onclick="Cards.saveDetail()">Save Changes</button>
+                <button class="card-detail-btn" id="card-detail-block-btn" onclick="Cards.detailToggleBlock()">Block Card</button>
+                <button class="card-detail-btn danger" onclick="Cards.deleteCard()">Delete Card</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== PROFILE EDIT ========== -->
+    <div class="sheet-overlay" id="profile-edit-overlay" onclick="Profile.closeEdit(event)">
+        <div class="profile-edit-sheet" onclick="event.stopPropagation()">
+            <div class="bank-picker-head">
+                <span class="bank-picker-title">Edit Profile</span>
+                <button class="sheet-close" onclick="Profile.closeEdit()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            <div class="profile-edit-avatar-wrap">
+                <span class="avatar-placeholder" id="profile-edit-avatar-text">U</span>
+                <img id="profile-edit-avatar-img" style="display:none" alt="avatar preview">
+                <button class="profile-edit-cam" onclick="Profile.pickPhoto()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                </button>
+            </div>
+            <div class="card-detail-fields">
+                <label class="field-label">Full name</label>
+                <input type="text" id="profile-edit-name" class="sheet-input" maxlength="60" placeholder="Your full name">
+                <label class="field-label">Email</label>
+                <input type="email" id="profile-edit-email" class="sheet-input" maxlength="80" placeholder="you@example.com">
+            </div>
+            <div class="card-detail-actions">
+                <button class="btn-primary" onclick="Profile.saveEdit()">Save Profile</button>
+            </div>
         </div>
     </div>
 
