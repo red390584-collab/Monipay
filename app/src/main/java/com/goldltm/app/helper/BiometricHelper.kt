@@ -26,6 +26,14 @@ class BiometricHelper(private val activity: FragmentActivity) {
 
     enum class Availability { AVAILABLE, NO_HARDWARE, HARDWARE_UNAVAILABLE, NOT_ENROLLED, UNAVAILABLE }
 
+    companion object {
+        /**
+         * BiometricPrompt.ERROR_USER_NOT_DETECTED — the platform error code is 15,
+         * but the constant is not exposed by androidx.biometric:biometric:1.1.0.
+         */
+        private const val ERROR_USER_NOT_DETECTED = 15
+    }
+
     /** Strong biometrics required — CryptoObject keys need class 3 (strong) authenticators. */
     fun availability(): Availability {
         return when (BiometricManager.from(activity)
@@ -135,7 +143,7 @@ class BiometricHelper(private val activity: FragmentActivity) {
                 override fun onAuthenticationError(errorCode: Int, errString: CharSequence) {
                     when (errorCode) {
                         BiometricPrompt.ERROR_USER_CANCELED,
-                        BiometricPrompt.ERROR_USER_NOT_DETECTED,
+                        ERROR_USER_NOT_DETECTED,
                         BiometricPrompt.ERROR_NEGATIVE_BUTTON,
                         BiometricPrompt.ERROR_CANCELED -> onCancelled()
                         else -> onError(errorCode, errString.toString())
