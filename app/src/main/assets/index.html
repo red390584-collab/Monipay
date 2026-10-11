@@ -135,6 +135,10 @@
                 <input type="password" id="login-pin" placeholder="Enter your PIN" maxlength="4" inputmode="numeric">
             </div>
             <button class="btn-primary btn-full" onclick="Auth.login()">Sign In</button>
+            <button class="btn-biometric" id="login-biometric-btn" onclick="Biometric.login()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 10a2 2 0 00-2 2c0 1.02-.1 2.51-.26 4"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M2 12a10 10 0 0118-6"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .131-5.354 0-6"/><path d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0112 0c0 1.64-.35 4.36-.5 6"/></svg>
+                <span>Login with Biometrics</span>
+            </button>
             <div class="login-links">
                 <button class="btn-text" onclick="Navigation.show('forgot-pin')">Forgot PIN?</button>
             </div>
@@ -159,6 +163,14 @@
             </div>
             <button class="btn-primary btn-full" onclick="Auth.resetPin()">Send Reset Link</button>
             <div class="legal-disclaimer"><small>This is a demo application. No real emails are sent.</small></div>
+        </div>
+    </div>
+
+    <!-- ========== BIOMETRIC AUTH OVERLAY ========== -->
+    <div id="bio-overlay" class="bio-overlay">
+        <div class="bio-overlay-card">
+            <div class="bio-spinner"></div>
+            <div class="bio-overlay-text" id="bio-overlay-text">Authenticating…</div>
         </div>
     </div>
 
@@ -455,6 +467,36 @@
             </div>
 
             <div class="settings-section">
+                <div class="settings-section-title">Biometric Security</div>
+                <div class="settings-item">
+                    <div class="settings-item-left">
+                        <div class="settings-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a5 5 0 015 5v3a5 5 0 01-10 0V7a5 5 0 015-5z"/><path d="M3 21v-2a5 5 0 015-5h8a5 5 0 015 5v2"/></svg></div>
+                        <div class="settings-item-info">
+                            <span class="settings-item-title">Enable Biometric Login</span>
+                            <span class="settings-item-desc">Sign in with fingerprint or face instead of your PIN</span>
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="bio-login-toggle" onchange="Settings.toggleBiometricLogin(this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="settings-item">
+                    <div class="settings-item-left">
+                        <div class="settings-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg></div>
+                        <div class="settings-item-info">
+                            <span class="settings-item-title">Require Biometric for Transfers</span>
+                            <span class="settings-item-desc">Confirm every transfer with biometrics</span>
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="bio-transfer-toggle" onchange="Settings.toggleBiometricTransfer(this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="settings-section">
                 <div class="settings-section-title">Paystack API Key</div>
                 <div class="apikey-card">
                     <div class="apikey-card-header">
@@ -545,7 +587,7 @@
                 </div>
                 <span class="security-item-action">Change</span>
             </div>
-            <div class="security-item" onclick="Security.changePin()">
+            <div class="security-item" onclick="Navigation.show('settings')">
                 <div class="security-item-content">
                     <div class="security-item-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a5 5 0 015 5v3a5 5 0 01-10 0V7a5 5 0 015-5z"/><path d="M3 21v-2a5 5 0 015-5h8a5 5 0 015 5v2"/></svg></div>
                     <div class="security-item-info">

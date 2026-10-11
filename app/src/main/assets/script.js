@@ -149,6 +149,10 @@ const Api = {
                 case 'getTermiiBase': return Android.getTermiiBase();
                 case 'getDeviceInfo': return Android.getDeviceInfo();
                 case 'isBiometricAvailable': return Android.isBiometricAvailable();
+                case 'isBiometricLoginEnabled': return Android.isBiometricLoginEnabled();
+                case 'isBiometricTransferEnabled': return Android.isBiometricTransferEnabled();
+                case 'enableBiometricTransfer': return Android.enableBiometricTransfer();
+                case 'disableBiometricTransfer': return Android.disableBiometricTransfer();
                 case 'savePreference': Android.savePreference(args[0], args[1]); return true;
                 case 'getPreference': return Android.getPreference(args[0]);
                 case 'clearPreference': Android.clearPreference(args[0]); return true;
@@ -750,7 +754,187 @@ const Auth = {
         }
         Toast.show('PIN reset link sent (demo mode - no email is actually sent)', 'success');
         Navigation.show('login');
+    },
+
+    // Shows the fingerprint button when biometric login is enabled + usable
+    refreshBiometric() {
+        const state = Biometric.refresh();
+        const btn = document.getElementById('login-biometric-btn');
+        if (btn) btn.style.display = (state.loginEnabled && state.available) ? 'flex' : 'none';
+        const phoneInput = document.getElementById('login-phone');
+        if (phoneInput && !phoneInput.value && Session.phoneNumber) phoneInput.value = Session.phoneNumber;
     }
+};
+
+// ============================================
+// Biometric (AndroidX BiometricPrompt via native bridge)
+// ============================================
+
+const Biometric = {
+    state: { available: false, status: '', loginEnabled: false, transferEnabled: false },
+    transferUsePin: false,     // user chose "Use PIN instead" for the next transfer
+    _loginErrorCb: null,
+    _transfer: null,           // pending confirmation { amount, recipient, onConfirmed, onFailed }
+    _lastNonce: '',
+
+    // Re-sync flags + hardware availability from the native layer (source of truth)
+    refresh() {
+        if (!Utils.hasAndroid) return this.state;
+        try {
+            const info = JSON.parse(Api.sync('isBiometricAvailable', []) || '{}');
+            this.state.available = !!(info && info.available);
+            this.state.status = (info && info.status) || '';
+        } catch (e) {
+            this.state.available = false;
+        }
+        this.state.loginEnabled = Api.sync('isBiometricLoginEnabled', []) === true;
+        this.state.transferEnabled = Api.sync('isBiometricTransferEnabled', []) === true;
+        return this.state;
+    },
+
+    availabilityError() {
+        if (this.state.available) return null;
+        if (this.state.status === 'not_enrolled') {
+            return 'No biometric credentials enrolled. Please set up in device settings.';
+        }
+        return 'Biometric not available on this device';
+    },
+
+    _overlay(show, text) {
+        const el = document.getElementById('bio-overlay');
+        if (el) el.classList.toggle('active', !!show);
+        const label = document.getElementById('bio-overlay-text');
+        if (label && text) label.textContent = text;
+    },
+
+    // ---- Settings toggles ----
+    enableLogin() {
+        const err = this.availabilityError();
+        if (err) { Toast.show(err, 'error'); return false; }
+        if (!Session.accountNumber) { Toast.show('Sign in to enable biometric login', 'error'); return false; }
+        this._overlay(true, 'Confirm to enable biometric login\u2026');
+        Android.enableBiometricLogin(Session.accountNumber + '|' + (Session.email || ''));
+        return true;
+    },
+
+    disableLogin() {
+        if (Utils.hasAndroid) Android.disableBiometricLogin();
+        this.refresh();
+        return true;
+    },
+
+    setTransfer(enabled) {
+        if (!Utils.hasAndroid) return false;
+        if (enabled) {
+            const err = this.availabilityError();
+            if (err) { Toast.show(err, 'error'); return false; }
+            const ok = Android.enableBiometricTransfer() === true;
+            if (!ok) { Toast.show('Biometric not available on this device', 'error'); return false; }
+            this.transferUsePin = false;
+            this.refresh();
+            return true;
+        }
+        Android.disableBiometricTransfer();
+        this.refresh();
+        return true;
+    },
+
+    // ---- Login ----
+    login(onError) {
+        const err = this.availabilityError();
+        if (err) { Toast.show(err, 'error'); if (onError) onError(err); return; }
+        if (!Utils.hasAndroid) { if (onError) onError('Bridge unavailable'); return; }
+        this._loginErrorCb = onError || null;
+        this._overlay(true, 'Authenticating\u2026');
+        Android.authenticateBiometricLogin();
+    },
+
+    // ---- Transfer confirmation ----
+    confirmTransfer(amountStr, recipient, onConfirmed, onFailed) {
+        if (!Utils.hasAndroid) { if (onFailed) onFailed('Bridge unavailable'); return; }
+        this._transfer = { amount: amountStr, recipient: recipient, onConfirmed: onConfirmed, onFailed: onFailed };
+        this._overlay(true, 'Authenticate to confirm');
+        Android.authenticateBiometricTransfer(amountStr, recipient);
+    }
+};
+
+// Native -> JS callbacks (invoked by Kotlin via window.*)
+window.onBiometricLoginEnabled = function (enabled, message) {
+    Biometric._overlay(false);
+    Biometric.refresh();
+    const toggle = document.getElementById('bio-login-toggle');
+    if (toggle) toggle.checked = (enabled === 'true');
+    if (enabled === 'true') {
+        Toast.show('Biometric login enabled', 'success');
+    } else if (enabled !== 'cancelled') {
+        Toast.show(message || 'Biometric login could not be enabled', 'error');
+    }
+};
+
+window.onBiometricLoginSuccess = function (token) {
+    Biometric._overlay(false);
+    Biometric._loginErrorCb = null;
+    // token = "accountNumber|email" — only recoverable behind the CryptoObject
+    const accountNumber = (token || '').split('|')[0] || '';
+    Store.load().then(() => {
+        const user = Store.userByAccount(accountNumber);
+        if (!user) {
+            Toast.show('Account not found. Please sign in with your PIN.', 'error');
+            return;
+        }
+        Session.saveUser(user);
+        Session.set('pin_hash', user.pinHash || '');
+        Session.setLoggedIn(true);
+        BottomNav.go('home');
+        Toast.show('Welcome back, ' + (user.fullName || 'User'), 'success');
+    }).catch(() => {
+        Toast.show('Could not sign in. Please try again.', 'error');
+    });
+};
+
+window.onBiometricLoginError = function (message) {
+    Biometric._overlay(false);
+    const cb = Biometric._loginErrorCb;
+    Biometric._loginErrorCb = null;
+    if (message === 'cancelled') {
+        // "Use PIN instead" — dismiss silently, PIN form stays on screen
+        if (cb) cb(null);
+        return;
+    }
+    Toast.show(message || 'Authentication failed. Try again or use PIN.', 'error');
+    if (cb) cb(message);
+};
+
+window.onBiometricTransferSuccess = function (token, nonce, amount, recipient) {
+    Biometric._overlay(false);
+    const pending = Biometric._transfer;
+    Biometric._transfer = null;
+    if (!pending) return;
+    // Bind the confirmation to this exact transaction; reject replays (spec 3.4)
+    if (!token || !nonce || nonce === Biometric._lastNonce) {
+        Toast.show('Confirmation expired. Please try again.', 'error');
+        return;
+    }
+    if (amount !== pending.amount || recipient !== pending.recipient) {
+        Toast.show('Transfer confirmation mismatch. Please try again.', 'error');
+        return;
+    }
+    Biometric._lastNonce = nonce;
+    pending.onConfirmed({ token: token, nonce: nonce });
+};
+
+window.onBiometricTransferError = function (message) {
+    Biometric._overlay(false);
+    const pending = Biometric._transfer;
+    Biometric._transfer = null;
+    if (!pending) return;
+    if (message === 'cancelled') {
+        // User tapped "Use PIN instead" — fall back quietly
+        if (pending.onFailed) pending.onFailed(null);
+        return;
+    }
+    Toast.show(message || 'Authentication failed. Try again or use PIN.', 'error');
+    if (pending.onFailed) pending.onFailed(message);
 };
 
 // ============================================
@@ -1037,6 +1221,12 @@ const Settings = {
         document.getElementById('notif-credit-sms').checked = notifs.creditSms;
         document.getElementById('notif-push').checked = notifs.push;
 
+        const bio = Biometric.refresh();
+        const bioLoginToggle = document.getElementById('bio-login-toggle');
+        const bioTransferToggle = document.getElementById('bio-transfer-toggle');
+        if (bioLoginToggle) bioLoginToggle.checked = !!bio.loginEnabled;
+        if (bioTransferToggle) bioTransferToggle.checked = !!bio.transferEnabled;
+
         document.getElementById('settings-app-version').textContent = Api.sync('getAppVersion', []) || '1.0.0';
         document.getElementById('settings-bin-id').textContent = Store.binId();
     },
@@ -1097,6 +1287,28 @@ const Settings = {
         document.getElementById('paystack-key-status').textContent = 'Not set';
         document.getElementById('paystack-warning').style.display = 'flex';
         Toast.show('Paystack API key cleared', 'success');
+    },
+
+    toggleBiometricLogin(checked) {
+        if (checked) {
+            const started = Biometric.enableLogin();
+            if (!started) {
+                const t = document.getElementById('bio-login-toggle');
+                if (t) t.checked = false;
+            }
+            // Success/cancel/error arrives via window.onBiometricLoginEnabled
+        } else {
+            Biometric.disableLogin();
+            Toast.show('Biometric login disabled', 'success');
+        }
+    },
+
+    toggleBiometricTransfer(checked) {
+        const ok = Biometric.setTransfer(checked);
+        const t = document.getElementById('bio-transfer-toggle');
+        if (t) t.checked = !!ok && checked;
+        if (ok && checked) Toast.show('Biometric confirmation required for transfers', 'success');
+        else if (ok && !checked) Toast.show('Transfers now confirmed with PIN only', 'success');
     }
 };
 
@@ -1106,13 +1318,13 @@ const Settings = {
 
 const Security = {
     load() {
-        const info = Api.sync('isBiometricAvailable', []);
         try {
-            const parsed = typeof info === 'string' ? JSON.parse(info) : info;
+            const bio = Biometric.refresh();
             document.getElementById('security-biometric-status').textContent =
-                parsed && parsed.available ? 'Available' : 'Unavailable';
+                bio.loginEnabled ? 'Enabled' : (bio.available ? 'Off' : 'Unavailable');
             document.getElementById('security-biometric-desc').textContent =
-                parsed && parsed.available ? 'Fingerprint unlock supported on this device' : 'No biometric hardware detected';
+                bio.loginEnabled ? 'Biometric login is on \u2014 tap to manage in Settings'
+                    : (bio.available ? 'Fingerprint unlock supported on this device' : 'No biometric hardware detected');
         } catch (e) { /* defaults */ }
         try {
             const device = JSON.parse(Api.sync('getDeviceInfo', []) || '{}');
@@ -1183,14 +1395,19 @@ const Security = {
 const Transfers = {
     // opts: { pin, amount, description, txnType, recipientName, recipientAccount,
     //         bankName, creditUser (bin user object or null), senderPhone }
+    // Biometric-confirmed transfers skip PIN validation — the CryptoObject token
+    // binds this exact amount|recipient|nonce|timestamp in the Android Keystore.
     execute(opts, onDone, onError) {
-        if (!/^\d{4}$/.test(opts.pin || '')) {
-            if (onError) onError('Please enter your 4-digit PIN');
-            return;
-        }
-        if (!Api.sync('verifyPinHash', [opts.pin, Session.pinHash])) {
-            if (onError) onError('Incorrect transaction PIN');
-            return;
+        const bioVerified = !!opts.biometricVerified && !!opts.biometricToken;
+        if (!bioVerified) {
+            if (!/^\d{4}$/.test(opts.pin || '')) {
+                if (onError) onError('Please enter your 4-digit PIN');
+                return;
+            }
+            if (!Api.sync('verifyPinHash', [opts.pin, Session.pinHash])) {
+                if (onError) onError('Incorrect transaction PIN');
+                return;
+            }
         }
         const amount = Number(opts.amount);
         if (!amount || amount <= 0) {
@@ -1227,8 +1444,10 @@ const Transfers = {
                 status: 'successful',
                 txnType: opts.txnType || 'Wallet Transfer',
                 receiptNo: receiptNo,
-                reference: reference
+                reference: reference,
+                biometricVerified: bioVerified
             };
+            if (bioVerified) debitTxn.biometricToken = opts.biometricToken;
             Store.addTransaction(sender, debitTxn);
 
             let creditPhone = null;
@@ -1288,6 +1507,37 @@ const Transfers = {
             });
         }).catch(err => {
             if (onError) onError(err.message || 'Transfer failed');
+        });
+    },
+
+    // Gates any transfer behind biometric confirmation when enabled in Settings
+    // (spec 3.3). Falls back to the PIN flow on cancel/failure — the inline PIN
+    // field stays visible, so the next Confirm tap uses the PIN directly.
+    executeWithAuth(opts, onDone, onError) {
+        const state = Biometric.refresh();
+        if (!state.transferEnabled || !state.available) {
+            this.execute(opts, onDone, onError);
+            return;
+        }
+        if (Biometric.transferUsePin) {
+            // User chose "Use PIN instead" for this transaction
+            Biometric.transferUsePin = false;
+            this.execute(opts, onDone, onError);
+            return;
+        }
+        const recipientLabel = opts.recipientName || opts.recipientAccount || 'recipient';
+        Biometric.confirmTransfer(Utils.naira(opts.amount), recipientLabel, (result) => {
+            Biometric.transferUsePin = false;
+            this.execute(Object.assign({}, opts, {
+                pin: null,
+                biometricVerified: true,
+                biometricToken: result.token
+            }), onDone, onError);
+        }, (message) => {
+            // null message = user tapped "Use PIN instead" (silent), otherwise the
+            // error was already surfaced by the callback handler
+            Biometric.transferUsePin = true;
+            if (message === null) Toast.show('Enter your transaction PIN to continue', 'success');
         });
     }
 };
@@ -1554,7 +1804,7 @@ const SendMoney = {
         const bankName = r.bankName || 'Goldltm Wallet';
         const description = narration || (r.isBank ? 'Transfer to ' + bankName : 'Wallet Transfer to ' + r.name);
 
-        Transfers.execute({
+        Transfers.executeWithAuth({
             pin: pin,
             amount: amount,
             description: description,
@@ -1630,7 +1880,7 @@ const Airtime = {
             Toast.show('Minimum airtime purchase is ' + Utils.naira(50), 'error');
             return;
         }
-        Transfers.execute({
+        Transfers.executeWithAuth({
             pin: pin,
             amount: amount,
             description: 'Airtime - ' + this.network.name + ' (' + phone + ')',
@@ -1733,7 +1983,7 @@ const Data = {
             Toast.show('Please enter a valid phone number', 'error');
             return;
         }
-        Transfers.execute({
+        Transfers.executeWithAuth({
             pin: pin,
             amount: this.plan.price,
             description: 'Data - ' + this.network.name + ' ' + this.plan.name + ' (' + phone + ')',
@@ -1916,7 +2166,7 @@ const Bills = {
         }
         const item = this.bouquet ? this.bouquet.name : this.provider.name;
         const typeLabels = { electricity: 'Electricity', cable: 'Cable TV', internet: 'Internet/Education' };
-        Transfers.execute({
+        Transfers.executeWithAuth({
             pin: pin,
             amount: amount,
             description: item + ' (' + id + ')',
@@ -1976,7 +2226,8 @@ const Receipt = {
             sessionNo: receiptNo,
             txnId: txn.id,
             reference: reference,
-            application: 'Goldltm'
+            application: 'Goldltm',
+            biometricVerified: !!txn.biometricVerified
         };
         this.currentText =
             'GOLDLTM\nTransaction Receipt\n' +
@@ -2040,6 +2291,7 @@ const Receipt = {
                     row('Reference', d.reference) +
                     row('Application', d.application) +
                     row('Payment Type', d.txnType) +
+                    (d.biometricVerified ? row('Biometric', 'Verified \u2713') : '') +
                     row('From', d.senderName + ' (' + d.senderAccount + ')') +
                 '</div>' +
                 '<div class="receipt-foot">' +
@@ -2326,6 +2578,7 @@ const App = {
             origShow(name, replace);
             if (name === 'settings') Settings.load();
             if (name === 'security') Security.load();
+            if (name === 'login') Auth.refreshBiometric();
         };
 
         // Live summary update
@@ -2334,14 +2587,22 @@ const App = {
         if (amountInput) amountInput.addEventListener('input', () => SendMoney.updateSummary());
         if (narrationInput) narrationInput.addEventListener('input', () => SendMoney.updateSummary());
 
-        // Splash -> session routing
+        // Splash -> session routing (biometric-gated when enabled — spec 2.1)
         setTimeout(() => {
-            if (Session.isLoggedIn && Session.accountNumber) {
+            const bio = Biometric.refresh();
+            const bioGated = bio.loginEnabled && bio.available && !!Session.accountNumber;
+            if (bioGated) {
+                // Entry requires biometrics; PIN form stays available as fallback
+                Navigation.show('login');
+                Auth.refreshBiometric();
+                setTimeout(() => Biometric.login(), 500);
+            } else if (Session.isLoggedIn && Session.accountNumber) {
                 BottomNav.go('home');
             } else if (Session.get('onboarding_complete') !== 'true') {
                 Onboarding.open();
             } else {
                 Navigation.show('login');
+                Auth.refreshBiometric();
             }
         }, 2200);
     }

@@ -188,7 +188,41 @@ Thank you for using Goldltm.
 
 ---
 
-## 8. Legal disclaimer
+## 8. Biometric authentication
+
+Two independent features, both powered by **AndroidX Biometric** (`androidx.biometric:biometric`)
+with `CryptoObject` keys from the Android Keystore (`MainActivity` extends `AppCompatActivity`,
+which provides the required `FragmentActivity`; `USE_BIOMETRIC` is declared in the manifest).
+
+- **Biometric login** (`biometric_enabled` in SharedPreferences): enabling it in **Settings →
+  Biometric Security** prompts once to confirm, then encrypts the session identity
+  (`accountNumber|email`) with an auth-gated AES/GCM-256 Keystore key
+  (`goldltm_biometric_login_key`, `setUserAuthenticationRequired(true)`, per-use auth). The token
+  is only decryptable behind a successful biometric prompt, so entry is gated on app open when the
+  toggle is on (PIN login stays available as fallback). `KeyPermanentlyInvalidatedException`
+  (lock-screen/biometric change) auto-disables and asks the user to re-enable. Disabling deletes
+  the key and the stored token.
+- **Transfer confirmation** (`biometric_transfer_enabled`): when on, every transfer flow (Send
+  Money, Airtime, Data, Bills) shows the system prompt — *"Authenticate to send ₦X to Y"* — before
+  the PIN step. On success the Keystore signs `amount|recipient|nonce|timestamp` (fresh native
+  nonce, single use) into a confirmation token; the JS layer rejects replays and amount/recipient
+  mismatches, stores the token on the transaction, and the receipt shows a *Biometric Verified*
+  row. "Use PIN instead" (or any failure) falls back to the existing PIN flow.
+- Bridge methods on `window.Android`: `isBiometricAvailable`, `enableBiometricLogin`,
+  `disableBiometricLogin`, `authenticateBiometricLogin`, `isBiometricLoginEnabled`,
+  `enableBiometricTransfer`, `disableBiometricTransfer`, `authenticateBiometricTransfer`.
+  Native → JS callbacks: `window.onBiometricLoginEnabled(success, message)`,
+  `window.onBiometricLoginSuccess(token)`, `window.onBiometricLoginError(message)`,
+  `window.onBiometricTransferSuccess(token, nonce, amount, recipient, timestamp)`,
+  `window.onBiometricTransferError(message)` (`"cancelled"` = dismissed silently → PIN fallback).
+- Kotlin logic lives in `helper/BiometricHelper.kt`; the JS side is the `Biometric` module in
+  `script.js`. Devices without biometrics see the exact spec messages
+  ("Biometric not available on this device" / "No biometric credentials enrolled…") and keep the
+  PIN flow unchanged.
+
+---
+
+## 9. Legal disclaimer
 
 > This application is a **demonstration / reference implementation**. It does not hold, move, or
 > safeguard real money and is **not a licensed banking or financial-services product**. It must

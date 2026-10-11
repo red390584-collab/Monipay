@@ -8,13 +8,15 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
 import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
-import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
 import androidx.core.content.FileProvider
 import com.goldltm.app.helper.ApiClient
+import com.goldltm.app.helper.BiometricHelper
 import com.goldltm.app.helper.JsonBinHelper
 import com.goldltm.app.helper.SharedPrefsHelper
 import com.goldltm.app.helper.TermiiHelper
@@ -36,6 +38,7 @@ class WebAppInterface(private val activity: MainActivity) {
     private val jsonBinHelper = JsonBinHelper(activity)
     private val termiiHelper = TermiiHelper(activity)
     private val apiClient = ApiClient(activity)
+    private val biometricHelper = BiometricHelper(activity)
     private val mainHandler = Handler(Looper.getMainLooper())
 
     private var webView: WebView? = null
@@ -282,20 +285,258 @@ class WebAppInterface(private val activity: MainActivity) {
         }.toString()
     }
 
+    // ------------------------------------------
+    // Biometric authentication (login + transfer confirmation)
+    // ------------------------------------------
+
+    companion object {
+        // SharedPreferences flags (spec: biometric_enabled / biometric_transfer_enabled)
+        const val KEY_BIOMETRIC_LOGIN_ENABLED = "biometric_enabled"
+        const val KEY_BIOMETRIC_TRANSFER_ENABLED = "biometric_transfer_enabled"
+        // Encrypted session token (only decryptable behind a biometric CryptoObject)
+        const val KEY_BIO_TOKEN_IV = "biometric_token_iv"
+        const val KEY_BIO_TOKEN_CIPHER = "biometric_token_cipher"
+        // Keystore aliases
+        const val ALIAS_BIO_LOGIN = "goldltm_biometric_login_key"
+        const val ALIAS_BIO_TRANSFER = "goldltm_biometric_transfer_key"
+    }
+
+    private fun statusString(a: BiometricHelper.Availability): String = when (a) {
+        BiometricHelper.Availability.AVAILABLE -> "available"
+        BiometricHelper.Availability.NO_HARDWARE -> "no_hardware"
+        BiometricHelper.Availability.HARDWARE_UNAVAILABLE -> "hardware_unavailable"
+        BiometricHelper.Availability.NOT_ENROLLED -> "not_enrolled"
+        BiometricHelper.Availability.UNAVAILABLE -> "unavailable"
+    }
+
+    /** Safely calls a window.* JavaScript callback on the WebView (UI thread). */
+    private fun emitToJs(function: String, vararg args: String) {
+        val quoted = args.joinToString(", ") { JSONObject.quote(it) }
+        mainHandler.post {
+            try {
+                webView?.evaluateJavascript("window.$function($quoted)", null)
+            } catch (e: Exception) {
+                // WebView may be gone (activity finishing) — nothing to do
+            }
+        }
+    }
+
     @JavascriptInterface
     fun isBiometricAvailable(): String {
-        val biometricManager = BiometricManager.from(activity)
-        val status = when (biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_WEAK)) {
-            BiometricManager.BIOMETRIC_SUCCESS -> "available"
-            BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE -> "no_hardware"
-            BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE -> "hardware_unavailable"
-            BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> "not_enrolled"
-            else -> "unavailable"
-        }
+        val availability = biometricHelper.availability()
         return JSONObject().apply {
-            put("available", status == "available")
-            put("status", status)
+            put("available", availability == BiometricHelper.Availability.AVAILABLE)
+            put("status", statusString(availability))
         }.toString()
+    }
+
+    @JavascriptInterface
+    fun isBiometricLoginEnabled(): Boolean {
+        return sharedPrefsHelper.getBoolean(KEY_BIOMETRIC_LOGIN_ENABLED, false)
+    }
+
+    @JavascriptInterface
+    fun isBiometricTransferEnabled(): Boolean {
+        return sharedPrefsHelper.getBoolean(KEY_BIOMETRIC_TRANSFER_ENABLED, false)
+    }
+
+    /**
+     * Enrolment flow (spec 2.2): checks support, prompts once to confirm, then
+     * encrypts the session token (accountNumber|email) with a Keystore key that
+     * requires biometrics to decrypt. Calls window.onBiometricLoginEnabled(enabled, message).
+     */
+    @JavascriptInterface
+    fun enableBiometricLogin(userId: String) {
+        mainHandler.post {
+            val availability = biometricHelper.availability()
+            if (availability != BiometricHelper.Availability.AVAILABLE) {
+                emitToJs("onBiometricLoginEnabled", "false", biometricHelper.availabilityMessage())
+                return@post
+            }
+            if (userId.isBlank()) {
+                emitToJs("onBiometricLoginEnabled", "false", "No account session to protect. Sign in first.")
+                return@post
+            }
+
+            val cipher = try {
+                biometricHelper.createEncryptCipher(ALIAS_BIO_LOGIN)
+            } catch (e: Exception) {
+                emitToJs("onBiometricLoginEnabled", "false", "Could not create biometric key: " + (e.message ?: "unknown error"))
+                return@post
+            }
+
+            biometricHelper.authenticate(
+                title = "Enable Biometric Login",
+                subtitle = "Confirm your identity to enable biometric login",
+                negativeText = "Cancel",
+                cryptoObject = BiometricPrompt.CryptoObject(cipher),
+                onSuccess = { crypto ->
+                    try {
+                        val authenticatedCipher = crypto?.cipher ?: cipher
+                        val encrypted = authenticatedCipher.doFinal(userId.toByteArray(Charsets.UTF_8))
+                        sharedPrefsHelper.saveString(KEY_BIO_TOKEN_IV, Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
+                        sharedPrefsHelper.saveString(KEY_BIO_TOKEN_CIPHER, Base64.encodeToString(encrypted, Base64.NO_WRAP))
+                        sharedPrefsHelper.saveBoolean(KEY_BIOMETRIC_LOGIN_ENABLED, true)
+                        emitToJs("onBiometricLoginEnabled", "true", "Biometric login enabled")
+                    } catch (e: Exception) {
+                        emitToJs("onBiometricLoginEnabled", "false", "Could not save biometric token: " + (e.message ?: "unknown error"))
+                    }
+                },
+                onError = { _, message ->
+                    emitToJs("onBiometricLoginEnabled", "false", message)
+                },
+                onCancelled = {
+                    emitToJs("onBiometricLoginEnabled", "cancelled", "Cancelled")
+                }
+            )
+        }
+    }
+
+    /** Disables biometric login and deletes the Keystore key + encrypted token (spec 2.5). */
+    @JavascriptInterface
+    fun disableBiometricLogin(): Boolean {
+        biometricHelper.deleteKey(ALIAS_BIO_LOGIN)
+        sharedPrefsHelper.removeKey(KEY_BIO_TOKEN_IV)
+        sharedPrefsHelper.removeKey(KEY_BIO_TOKEN_CIPHER)
+        sharedPrefsHelper.saveBoolean(KEY_BIOMETRIC_LOGIN_ENABLED, false)
+        return true
+    }
+
+    /**
+     * Biometric login (spec 2.3): unlocks the Keystore CryptoObject, decrypts the
+     * session token and notifies JavaScript. window.onBiometricLoginSuccess(token) /
+     * window.onBiometricLoginError(message) — message "cancelled" means the user
+     * chose "Use PIN instead" (dismiss silently).
+     */
+    @JavascriptInterface
+    fun authenticateBiometricLogin() {
+        mainHandler.post {
+            if (!isBiometricLoginEnabled()) {
+                emitToJs("onBiometricLoginError", "Biometric login is not enabled")
+                return@post
+            }
+            val availability = biometricHelper.availability()
+            if (availability != BiometricHelper.Availability.AVAILABLE) {
+                emitToJs("onBiometricLoginError", biometricHelper.availabilityMessage())
+                return@post
+            }
+            val ivB64 = sharedPrefsHelper.getString(KEY_BIO_TOKEN_IV)
+            val tokenB64 = sharedPrefsHelper.getString(KEY_BIO_TOKEN_CIPHER)
+            if (ivB64.isNullOrBlank() || tokenB64.isNullOrBlank()) {
+                disableBiometricLogin()
+                emitToJs("onBiometricLoginError", "Biometric data missing. Please enable biometric login again.")
+                return@post
+            }
+
+            val cipher = try {
+                biometricHelper.createDecryptCipher(ALIAS_BIO_LOGIN, Base64.decode(ivB64, Base64.NO_WRAP))
+            } catch (e: KeyPermanentlyInvalidatedException) {
+                // Lock screen or enrolled biometrics changed — key is dead (spec 7)
+                disableBiometricLogin()
+                emitToJs("onBiometricLoginError", "Biometric settings changed. Please enable biometric login again.")
+                return@post
+            } catch (e: Exception) {
+                emitToJs("onBiometricLoginError", "Authentication failed. Try again or use PIN.")
+                return@post
+            }
+
+            biometricHelper.authenticate(
+                title = "Biometric Login",
+                subtitle = "Log in using your fingerprint or face",
+                negativeText = "Use PIN instead",
+                cryptoObject = BiometricPrompt.CryptoObject(cipher),
+                onSuccess = { crypto ->
+                    try {
+                        val authenticatedCipher = crypto?.cipher ?: cipher
+                        val decrypted = authenticatedCipher.doFinal(Base64.decode(tokenB64, Base64.NO_WRAP))
+                        emitToJs("onBiometricLoginSuccess", String(decrypted, Charsets.UTF_8))
+                    } catch (e: Exception) {
+                        emitToJs("onBiometricLoginError", "Authentication failed. Try again or use PIN.")
+                    }
+                },
+                onError = { _, _ ->
+                    emitToJs("onBiometricLoginError", "Authentication failed. Try again or use PIN.")
+                },
+                onCancelled = {
+                    emitToJs("onBiometricLoginError", "cancelled")
+                }
+            )
+        }
+    }
+
+    /** Saves the transfer-confirmation flag (spec 3.2). Returns false when unsupported. */
+    @JavascriptInterface
+    fun enableBiometricTransfer(): Boolean {
+        if (biometricHelper.availability() != BiometricHelper.Availability.AVAILABLE) return false
+        sharedPrefsHelper.saveBoolean(KEY_BIOMETRIC_TRANSFER_ENABLED, true)
+        return true
+    }
+
+    @JavascriptInterface
+    fun disableBiometricTransfer(): Boolean {
+        sharedPrefsHelper.saveBoolean(KEY_BIOMETRIC_TRANSFER_ENABLED, false)
+        return true
+    }
+
+    /**
+     * Transfer confirmation (spec 3.3): CryptoObject-bound prompt showing amount +
+     * recipient in the subtitle. On success the Keystore key signs the exact
+     * amount|recipient|nonce|timestamp payload, producing a single-use confirmation
+     * token that JavaScript must echo back — the prompt cannot be bypassed by
+     * calling window.onBiometricTransferSuccess() directly.
+     */
+    @JavascriptInterface
+    fun authenticateBiometricTransfer(amount: String, recipient: String) {
+        mainHandler.post {
+            if (!isBiometricTransferEnabled()) {
+                emitToJs("onBiometricTransferError", "Biometric transfer confirmation is not enabled")
+                return@post
+            }
+            val availability = biometricHelper.availability()
+            if (availability != BiometricHelper.Availability.AVAILABLE) {
+                emitToJs("onBiometricTransferError", biometricHelper.availabilityMessage())
+                return@post
+            }
+
+            // Nonce is generated native-side so each confirmation is single-use
+            val nonce = UUID.randomUUID().toString().replace("-", "")
+            val timestamp = System.currentTimeMillis()
+            val payload = "$amount|$recipient|$nonce|$timestamp"
+
+            val cipher = try {
+                biometricHelper.createEncryptCipher(ALIAS_BIO_TRANSFER)
+            } catch (e: Exception) {
+                emitToJs("onBiometricTransferError", "Could not prepare biometric confirmation: " + (e.message ?: "unknown error"))
+                return@post
+            }
+
+            biometricHelper.authenticate(
+                title = "Confirm Transfer",
+                subtitle = "Authenticate to send $amount to $recipient",
+                negativeText = "Use PIN instead",
+                cryptoObject = BiometricPrompt.CryptoObject(cipher),
+                onSuccess = { crypto ->
+                    try {
+                        val authenticatedCipher = crypto?.cipher ?: cipher
+                        val sealed = authenticatedCipher.doFinal(payload.toByteArray(Charsets.UTF_8))
+                        val iv = authenticatedCipher.iv ?: cipher.iv
+                        val token = Base64.encodeToString(sealed, Base64.NO_WRAP) + "." + Base64.encodeToString(iv, Base64.NO_WRAP)
+                        emitToJs(
+                            "onBiometricTransferSuccess", token, nonce,
+                            amount, recipient, timestamp.toString()
+                        )
+                    } catch (e: Exception) {
+                        emitToJs("onBiometricTransferError", "Authentication failed. Try again or use PIN.")
+                    }
+                },
+                onError = { _, _ ->
+                    emitToJs("onBiometricTransferError", "Authentication failed. Try again or use PIN.")
+                },
+                onCancelled = {
+                    emitToJs("onBiometricTransferError", "cancelled")
+                }
+            )
+        }
     }
 
     // ------------------------------------------
